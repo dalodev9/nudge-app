@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer Ripple Wave (Faint) -->
+    <path
+        android:strokeColor="#3380CBC4"
+        android:strokeWidth="2.0"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M54,23 A31,31 0 1,1 53.99,23" />
+
+    <!-- Third Ripple Ring -->
+    <path
+        android:strokeColor="#664DB6AC"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M54,31 A23,23 0 1,1 53.99,31" />
+
+    <!-- Second Ripple Ring (Brighter) -->
+    <path
+        android:strokeColor="#B380CBC4"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M54,39 A15,15 0 1,1 53.99,39" />
+
+    <!-- Innermost Glowing Halo -->
+    <path
+        android:fillColor="#40A0D2DB"
+        android:pathData="M54,44 A10,10 0 1,1 53.99,44" />
+
+    <!-- Center Core Dot (Solid Mint Teal) -->
+    <path
+        android:fillColor="#A0D2DB"
+        android:pathData="M54,47.5 A6.5,6.5 0 1,1 53.99,47.5" />
+
+    <!-- Center Radiant Highlight -->
+    <path
+        android:fillColor="#E0F7FA"
+        android:pathData="M54,51 A3,3 0 1,1 53.99,51" />
+
+</vector>
