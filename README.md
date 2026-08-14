@@ -21,6 +21,15 @@
 
 ---
 
+## 🤖 Built with AI & Author's Learning Journey
+
+> [!NOTE]
+> **Disclaimer**: This project was **100% built using AI** (pair-programmed with advanced AI coding agents). 
+> 
+> It was created as a hands-on learning exploration for the author to understand and master how modern, production-ready Android applications (using Kotlin, Jetpack Compose, Material 3, and system-level Android APIs) can be designed, architected, debugged, and refined end-to-end through AI-driven software engineering.
+
+---
+
 ## ✨ Key Features
 
 ### 🌿 Soft-Nudge Floating Overlays
