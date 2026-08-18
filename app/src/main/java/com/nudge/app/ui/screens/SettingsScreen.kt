@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -55,10 +56,13 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.nudge.app.data.InstalledAppInfo
 import com.nudge.app.data.PreferencesManager
 import com.nudge.app.data.UsageRepository
 import com.nudge.app.service.ScreenTimeTrackerService
 import com.nudge.app.ui.components.AppPickerBottomSheet
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -96,8 +100,15 @@ fun SettingsScreen(
 
     var showAppPicker by remember { mutableStateOf(false) }
 
-    val installedApps = remember {
-        usageRepository.getInstalledApps()
+    var installedApps by remember { mutableStateOf(emptyList<InstalledAppInfo>()) }
+    var isLoadingApps by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            val apps = usageRepository.getInstalledApps()
+            installedApps = apps
+            isLoadingApps = false
+        }
     }
 
     var isBatteryUnrestricted by remember {
@@ -515,6 +526,7 @@ fun SettingsScreen(
     if (showAppPicker) {
         AppPickerBottomSheet(
             installedApps = installedApps,
+            isLoading = isLoadingApps,
             isAppTracked = { pkg -> pkg in trackedPackages },
             onAppSelected = { app ->
                 if (!trackedPackages.contains(app.packageName)) {

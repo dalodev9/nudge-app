@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +60,7 @@ fun AppPickerBottomSheet(
     isAppTracked: (String) -> Boolean,
     onAppSelected: (InstalledAppInfo) -> Unit,
     onDismissRequest: () -> Unit,
+    isLoading: Boolean = false,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -135,7 +137,18 @@ fun AppPickerBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (filteredApps.isEmpty()) {
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            } else if (filteredApps.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -143,7 +156,7 @@ fun AppPickerBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No apps found matching \"$searchQuery\"",
+                        text = if (searchQuery.isBlank()) "No installed apps found" else "No apps found matching \"$searchQuery\"",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
