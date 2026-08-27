@@ -10,8 +10,11 @@ import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
+import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
+import com.nudge.app.BuildConfig
 import com.nudge.app.data.PreferencesManager
 import com.nudge.app.data.SocialMediaApp
 import com.nudge.app.data.UsageRepository
@@ -40,6 +43,7 @@ class ScreenTimeTrackerService : Service() {
     companion object {
         private const val ALERT_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes
         private const val POLL_INTERVAL_MS = 1500L // 1.5 seconds
+        private const val RESTART_DELAY_MS = 1000L // 1 second
 
         fun start(context: Context) {
             val intent = Intent(context, ScreenTimeTrackerService::class.java)
@@ -78,6 +82,14 @@ class ScreenTimeTrackerService : Service() {
         usageRepository = UsageRepository(this)
         preferencesManager = PreferencesManager(this)
         overlayManager = OverlayManager(this)
+
+        // Populate cooldown cache from persisted preferences
+        preferencesManager.getTrackedApps().forEach { pkg ->
+            val lastAlert = preferencesManager.getLastAlertTime(pkg)
+            if (lastAlert > 0L) {
+                alertCooldownMap[pkg] = lastAlert
+            }
+        }
 
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
@@ -141,16 +153,20 @@ class ScreenTimeTrackerService : Service() {
                 }
                 currentActivePackage = fgPackage
                 sessionStartTime = currentTime
-                android.util.Log.d("ScreenTimeTracker", "Detected tracked app opened: $fgPackage")
+                if (BuildConfig.DEBUG) {
+                    Log.d("ScreenTimeTracker", "Detected tracked app opened: $fgPackage")
+                }
             } else {
                 // Continuing existing session — check if limit exceeded
                 val sessionDurationMs = currentTime - sessionStartTime
                 val limitMs = preferencesManager.sessionTimeLimitMinutes * 60 * 1000L
 
-                android.util.Log.d(
-                    "ScreenTimeTracker",
-                    "Session in progress for $fgPackage: ${sessionDurationMs / 1000}s / ${limitMs / 1000}s"
-                )
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                        "ScreenTimeTracker",
+                        "Session in progress for $fgPackage: ${sessionDurationMs / 1000}s / ${limitMs / 1000}s"
+                    )
+                }
 
                 if (sessionDurationMs >= limitMs) {
                     sendAlertIfNeeded(fgPackage, sessionDurationMs)
@@ -159,7 +175,9 @@ class ScreenTimeTrackerService : Service() {
         } else {
             // Not on a tracked app
             if (currentActivePackage != null) {
-                android.util.Log.d("ScreenTimeTracker", "Exited tracked app: $currentActivePackage")
+                if (BuildConfig.DEBUG) {
+                    Log.d("ScreenTimeTracker", "Exited tracked app: $currentActivePackage")
+                }
             }
             if (overlayManager?.isShowing() == true) {
                 overlayManager?.dismiss()
@@ -175,6 +193,7 @@ class ScreenTimeTrackerService : Service() {
 
         if (now - lastAlert > ALERT_COOLDOWN_MS) {
             alertCooldownMap[packageName] = now
+            preferencesManager.setLastAlertTime(packageName, now)
 
             val appName = usageRepository.getAppName(packageName)
             val appIcon = usageRepository.getAppIcon(packageName)
@@ -194,7 +213,9 @@ class ScreenTimeTrackerService : Service() {
                         // Push session start time so next alert triggers in 5 minutes
                         val limitMs = preferencesManager.sessionTimeLimitMinutes * 60 * 1000L
                         sessionStartTime = System.currentTimeMillis() - (limitMs - 5 * 60 * 1000L).coerceAtLeast(0L)
-                        alertCooldownMap[packageName] = System.currentTimeMillis()
+                        val snoozeTime = System.currentTimeMillis()
+                        alertCooldownMap[packageName] = snoozeTime
+                        preferencesManager.setLastAlertTime(packageName, snoozeTime)
                     },
                     onDismiss = {
                         // Cooldown is set, user acknowledged
@@ -240,11 +261,52 @@ class ScreenTimeTrackerService : Service() {
                 )
             }
             val alarmManager = applicationContext.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
-            alarmManager?.set(
-                AlarmManager.ELAPSED_REALTIME,
-                android.os.SystemClock.elapsedRealtime() + 1000L,
-                restartServicePendingIntent
-            )
+            val triggerAtMillis = SystemClock.elapsedRealtime() + RESTART_DELAY_MS
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (alarmManager?.canScheduleExactAlarms() == true) {
+                        alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.ELAPSED_REALTIME,
+                            triggerAtMillis,
+                            restartServicePendingIntent
+                        )
+                    } else {
+                        alarmManager?.setAndAllowWhileIdle(
+                            AlarmManager.ELAPSED_REALTIME,
+                            triggerAtMillis,
+                            restartServicePendingIntent
+                        )
+                    }
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager?.setExactAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME,
+                        triggerAtMillis,
+                        restartServicePendingIntent
+                    )
+                } else {
+                    alarmManager?.set(
+                        AlarmManager.ELAPSED_REALTIME,
+                        triggerAtMillis,
+                        restartServicePendingIntent
+                    )
+                }
+            } catch (_: SecurityException) {
+                // Fallback to inexact alarm if exact alarm permission is missing or revoked
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager?.setAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME,
+                        triggerAtMillis,
+                        restartServicePendingIntent
+                    )
+                } else {
+                    alarmManager?.set(
+                        AlarmManager.ELAPSED_REALTIME,
+                        triggerAtMillis,
+                        restartServicePendingIntent
+                    )
+                }
+            }
         }
     }
 
@@ -260,4 +322,3 @@ class ScreenTimeTrackerService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 }
-

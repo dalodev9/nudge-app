@@ -13,8 +13,8 @@ import com.nudge.app.data.PreferencesManager
 import com.nudge.app.service.ScreenTimeTrackerService
 import com.nudge.app.ui.navigation.AppNavigation
 import com.nudge.app.ui.navigation.Routes
-import com.nudge.app.ui.screens.hasUsageStatsPermission
 import com.nudge.app.ui.theme.MyApplicationTheme
+import com.nudge.app.util.hasUsageStatsPermission
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

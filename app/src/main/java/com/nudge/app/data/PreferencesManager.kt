@@ -77,6 +77,14 @@ class PreferencesManager(context: Context) {
         return allTracked.filterNot { it in disabled }.toSet()
     }
 
+    fun getLastAlertTime(packageName: String): Long {
+        return prefs.getLong(KEY_ALERT_COOLDOWN_PREFIX + packageName, 0L)
+    }
+
+    fun setLastAlertTime(packageName: String, timestamp: Long) {
+        prefs.edit().putLong(KEY_ALERT_COOLDOWN_PREFIX + packageName, timestamp).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "screen_time_prefs"
         private const val KEY_TIME_LIMIT = "session_time_limit_minutes"
@@ -84,6 +92,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_OVERLAY_ENABLED = "overlay_enabled"
         private const val KEY_TRACKED_APPS = "tracked_apps"
         private const val KEY_DISABLED_APPS = "disabled_apps"
+        private const val KEY_ALERT_COOLDOWN_PREFIX = "alert_cooldown_"
         const val DEFAULT_TIME_LIMIT = 10
     }
 }

@@ -4,8 +4,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.nudge.app.BuildConfig
 import com.nudge.app.data.PreferencesManager
-import com.nudge.app.ui.screens.hasUsageStatsPermission
+import com.nudge.app.util.hasUsageStatsPermission
 
 class BootReceiver : BroadcastReceiver() {
 
@@ -13,7 +14,9 @@ class BootReceiver : BroadcastReceiver() {
         if (context == null || intent == null) return
 
         val action = intent.action
-        Log.d("ScreenTimeTracker", "BootReceiver received action: $action")
+        if (BuildConfig.DEBUG) {
+            Log.d("ScreenTimeTracker", "BootReceiver received action: $action")
+        }
 
         if (action == Intent.ACTION_BOOT_COMPLETED ||
             action == "android.intent.action.QUICKBOOT_POWERON" ||
@@ -21,10 +24,11 @@ class BootReceiver : BroadcastReceiver() {
         ) {
             val preferencesManager = PreferencesManager(context)
             if (preferencesManager.isTrackingEnabled && hasUsageStatsPermission(context)) {
-                Log.d("ScreenTimeTracker", "Auto-starting ScreenTimeTrackerService from BootReceiver")
+                if (BuildConfig.DEBUG) {
+                    Log.d("ScreenTimeTracker", "Auto-starting ScreenTimeTrackerService from BootReceiver")
+                }
                 ScreenTimeTrackerService.start(context)
             }
         }
     }
 }
-

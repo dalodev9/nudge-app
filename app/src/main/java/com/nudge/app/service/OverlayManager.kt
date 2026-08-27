@@ -21,6 +21,7 @@ import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.nudge.app.BuildConfig
 
 class OverlayManager(private val context: Context) {
 
@@ -41,7 +42,9 @@ class OverlayManager(private val context: Context) {
         onDismiss: () -> Unit = {}
     ) {
         if (!canDrawOverlays(context)) {
-            Log.w(TAG, "Overlay permission (SYSTEM_ALERT_WINDOW) not granted!")
+            if (BuildConfig.DEBUG) {
+                Log.w(TAG, "Overlay permission (SYSTEM_ALERT_WINDOW) not granted!")
+            }
             return
         }
 
@@ -51,7 +54,9 @@ class OverlayManager(private val context: Context) {
 
             val wm = windowManager
             if (wm == null) {
-                Log.e(TAG, "Could not obtain WindowManager")
+                if (BuildConfig.DEBUG) {
+                    Log.e(TAG, "Could not obtain WindowManager")
+                }
                 return@post
             }
 
@@ -200,7 +205,9 @@ class OverlayManager(private val context: Context) {
                     try {
                         context.startActivity(homeIntent)
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to launch home intent: ${e.message}")
+                        if (BuildConfig.DEBUG) {
+                            Log.e(TAG, "Failed to launch home intent: ${e.message}")
+                        }
                     }
                 }
             }
@@ -275,9 +282,13 @@ class OverlayManager(private val context: Context) {
             try {
                 wm.addView(rootLayout, wmParams)
                 overlayView = rootLayout
-                Log.d(TAG, "Overlay window successfully added to WindowManager for $appName")
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "Overlay window successfully added to WindowManager for $appName")
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Exception adding view to WindowManager: ${e.message}", e)
+                if (BuildConfig.DEBUG) {
+                    Log.e(TAG, "Exception adding view to WindowManager: ${e.message}", e)
+                }
                 overlayView = null
             }
         }
@@ -293,9 +304,13 @@ class OverlayManager(private val context: Context) {
         overlayView?.let { view ->
             try {
                 windowManager?.removeView(view)
-                Log.d(TAG, "Overlay window removed from WindowManager")
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "Overlay window removed from WindowManager")
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Exception removing overlay view: ${e.message}", e)
+                if (BuildConfig.DEBUG) {
+                    Log.e(TAG, "Exception removing overlay view: ${e.message}", e)
+                }
             }
             overlayView = null
         }
@@ -313,4 +328,3 @@ class OverlayManager(private val context: Context) {
         }
     }
 }
-

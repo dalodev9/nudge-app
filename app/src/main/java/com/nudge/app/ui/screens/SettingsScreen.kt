@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,6 +33,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -41,11 +43,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,68 +55,35 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.nudge.app.data.InstalledAppInfo
-import com.nudge.app.data.PreferencesManager
-import com.nudge.app.data.UsageRepository
-import com.nudge.app.service.ScreenTimeTrackerService
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nudge.app.ui.components.AppPickerBottomSheet
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.nudge.app.util.hasOverlayAccessPermission
+import com.nudge.app.util.openOverlaySettings
+import com.nudge.app.util.requestIgnoreBatteryOptimizations
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: SettingsViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val preferencesManager = remember { PreferencesManager(context) }
-    val usageRepository = remember { UsageRepository(context) }
+    val uiState by viewModel.uiState.collectAsState()
 
-    var timeLimitSlider by remember {
-        mutableFloatStateOf(preferencesManager.sessionTimeLimitMinutes.toFloat())
-    }
-    var isTrackingEnabled by remember {
-        mutableStateOf(preferencesManager.isTrackingEnabled)
-    }
-    var isOverlayEnabled by remember {
-        mutableStateOf(preferencesManager.isOverlayEnabled)
-    }
-
-    val trackedPackages = remember {
-        mutableStateListOf<String>().apply {
-            addAll(preferencesManager.getTrackedApps())
-        }
-    }
-
-    val appEnabledMap = remember {
-        mutableStateMapOf<String, Boolean>().apply {
-            trackedPackages.forEach { pkg ->
-                this[pkg] = preferencesManager.isAppEnabled(pkg)
-            }
-        }
+    var timeLimitSlider by remember(uiState.timeLimitMinutes) {
+        mutableFloatStateOf(uiState.timeLimitMinutes.toFloat())
     }
 
     var showAppPicker by remember { mutableStateOf(false) }
 
-    var installedApps by remember { mutableStateOf(emptyList<InstalledAppInfo>()) }
-    var isLoadingApps by remember { mutableStateOf(true) }
-
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            val apps = usageRepository.getInstalledApps()
-            installedApps = apps
-            isLoadingApps = false
-        }
-    }
-
-    var isBatteryUnrestricted by remember {
-        mutableStateOf(isIgnoringBatteryOptimizations(context))
-    }
-
-    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-        isBatteryUnrestricted = isIgnoringBatteryOptimizations(context)
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshBatteryOptimizationStatus()
     }
 
     Scaffold(
@@ -174,21 +141,15 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = if (isTrackingEnabled) "Active" else "Paused",
+                                text = if (uiState.isTrackingEnabled) "Active" else "Paused",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                         }
                         Switch(
-                            checked = isTrackingEnabled,
+                            checked = uiState.isTrackingEnabled,
                             onCheckedChange = { enabled ->
-                                isTrackingEnabled = enabled
-                                preferencesManager.isTrackingEnabled = enabled
-                                if (enabled) {
-                                    ScreenTimeTrackerService.start(context)
-                                } else {
-                                    ScreenTimeTrackerService.stop(context)
-                                }
+                                viewModel.setTrackingEnabled(enabled)
                             },
                             colors = SwitchDefaults.colors(
                                 checkedTrackColor = MaterialTheme.colorScheme.primary
@@ -220,19 +181,18 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = if (isOverlayEnabled) "Floating card appears over apps" else "Notifications only",
+                                text = if (uiState.isOverlayEnabled) "Floating card appears over apps" else "Notifications only",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                         }
                         Switch(
-                            checked = isOverlayEnabled,
+                            checked = uiState.isOverlayEnabled,
                             onCheckedChange = { enabled ->
                                 if (enabled && !hasOverlayAccessPermission(context)) {
                                     openOverlaySettings(context)
                                 }
-                                isOverlayEnabled = enabled
-                                preferencesManager.isOverlayEnabled = enabled
+                                viewModel.setOverlayEnabled(enabled)
                             },
                             colors = SwitchDefaults.colors(
                                 checkedTrackColor = MaterialTheme.colorScheme.primary
@@ -268,7 +228,7 @@ fun SettingsScreen(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = if (isBatteryUnrestricted) {
+                                    text = if (uiState.isBatteryUnrestricted) {
                                         "Unrestricted: phone battery saver will not stop tracking."
                                     } else {
                                         "Restricted: battery saver may pause background monitoring."
@@ -278,7 +238,7 @@ fun SettingsScreen(
                                 )
                             }
 
-                            if (isBatteryUnrestricted) {
+                            if (uiState.isBatteryUnrestricted) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -298,10 +258,10 @@ fun SettingsScreen(
                                     )
                                 }
                             } else {
-                                androidx.compose.material3.OutlinedButton(
+                                OutlinedButton(
                                     onClick = { requestIgnoreBatteryOptimizations(context) },
                                     shape = RoundedCornerShape(12.dp),
-                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                    contentPadding = PaddingValues(
                                         horizontal = 12.dp,
                                         vertical = 6.dp
                                     )
@@ -362,8 +322,7 @@ fun SettingsScreen(
                             value = timeLimitSlider,
                             onValueChange = { timeLimitSlider = it },
                             onValueChangeFinished = {
-                                preferencesManager.sessionTimeLimitMinutes =
-                                    timeLimitSlider.roundToInt()
+                                viewModel.setTimeLimit(timeLimitSlider.roundToInt())
                             },
                             valueRange = 1f..60f,
                             steps = 58,
@@ -408,7 +367,7 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${trackedPackages.size} apps configured",
+                            text = "${uiState.trackedPackages.size} apps configured",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -437,7 +396,7 @@ fun SettingsScreen(
             }
 
             // Tracked apps list or empty state
-            if (trackedPackages.isEmpty()) {
+            if (uiState.trackedPackages.isEmpty()) {
                 item {
                     Card(
                         shape = RoundedCornerShape(16.dp),
@@ -466,29 +425,26 @@ fun SettingsScreen(
                                 text = "Tap '+ Add App' to select apps from your device to monitor.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
                 }
             } else {
-                items(trackedPackages, key = { it }) { pkg ->
-                    val appName = remember(pkg) { usageRepository.getAppName(pkg) }
-                    val appIcon = remember(pkg) { usageRepository.getAppIcon(pkg) }
-                    val isEnabled = appEnabledMap[pkg] ?: true
+                items(uiState.trackedPackages, key = { it }) { pkg ->
+                    val appName = remember(pkg) { viewModel.getAppName(pkg) }
+                    val appIcon = remember(pkg) { viewModel.getAppIcon(pkg) }
+                    val isEnabled = uiState.appEnabledMap[pkg] ?: true
 
                     TrackedAppRow(
                         appName = appName,
                         appIcon = appIcon,
                         isEnabled = isEnabled,
                         onCheckedChange = { checked ->
-                            appEnabledMap[pkg] = checked
-                            preferencesManager.setAppEnabled(pkg, checked)
+                            viewModel.setAppEnabled(pkg, checked)
                         },
                         onDeleteClick = {
-                            trackedPackages.remove(pkg)
-                            appEnabledMap.remove(pkg)
-                            preferencesManager.removeTrackedApp(pkg)
+                            viewModel.removeTrackedApp(pkg)
                         }
                     )
                 }
@@ -525,14 +481,12 @@ fun SettingsScreen(
 
     if (showAppPicker) {
         AppPickerBottomSheet(
-            installedApps = installedApps,
-            isLoading = isLoadingApps,
-            isAppTracked = { pkg -> pkg in trackedPackages },
+            installedApps = uiState.installedApps,
+            isLoading = uiState.isLoadingApps,
+            isAppTracked = { pkg -> pkg in uiState.trackedPackages },
             onAppSelected = { app ->
-                if (!trackedPackages.contains(app.packageName)) {
-                    trackedPackages.add(app.packageName)
-                    appEnabledMap[app.packageName] = true
-                    preferencesManager.addTrackedApp(app.packageName)
+                if (!uiState.trackedPackages.contains(app.packageName)) {
+                    viewModel.addTrackedApp(app.packageName)
                 }
             },
             onDismissRequest = { showAppPicker = false }
@@ -615,7 +569,7 @@ private fun TrackedAppRow(
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
@@ -642,4 +596,3 @@ private fun TrackedAppRow(
         }
     }
 }
-
