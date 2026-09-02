@@ -1,10 +1,5 @@
 package com.nudge.app.ui.components
 
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -21,20 +15,18 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun UsageCard(
+    packageName: String,
     appName: String,
-    icon: Drawable?,
     usageMinutes: Long,
     dailyBudgetMinutes: Int,
     accentColor: Color,
@@ -47,25 +39,6 @@ fun UsageCard(
         (usageMinutes.toFloat() / dailyBudgetMinutes).coerceIn(0f, 1f)
     } else 0f
     val isOverLimit = usageMinutes > dailyBudgetMinutes
-
-    val imageBitmap = remember(icon) {
-        icon?.let { drawable ->
-            val bitmap = if (drawable is BitmapDrawable) {
-                drawable.bitmap
-            } else {
-                val bmp = Bitmap.createBitmap(
-                    drawable.intrinsicWidth.coerceAtLeast(1),
-                    drawable.intrinsicHeight.coerceAtLeast(1),
-                    Bitmap.Config.ARGB_8888
-                )
-                val canvas = Canvas(bmp)
-                drawable.setBounds(0, 0, canvas.width, canvas.height)
-                drawable.draw(canvas)
-                bmp
-            }
-            bitmap.asImageBitmap()
-        }
-    }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -81,15 +54,12 @@ fun UsageCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (imageBitmap != null) {
-                Image(
-                    bitmap = imageBitmap,
-                    contentDescription = appName,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                )
-            }
+            AppIcon(
+                packageName = packageName,
+                appName = appName,
+                size = 44.dp,
+                shape = RoundedCornerShape(12.dp)
+            )
 
             Spacer(modifier = Modifier.width(14.dp))
 

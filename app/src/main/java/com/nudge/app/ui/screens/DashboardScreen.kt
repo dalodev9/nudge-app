@@ -330,8 +330,8 @@ fun DashboardScreen(
                             key = { _, item -> item.packageName }
                         ) { index, info ->
                             UsageCard(
+                                packageName = info.packageName,
                                 appName = info.appName,
-                                icon = info.icon,
                                 usageMinutes = info.usageMinutes,
                                 dailyBudgetMinutes = uiState.dailyBudgetMinutes,
                                 accentColor = getBarColor(index)

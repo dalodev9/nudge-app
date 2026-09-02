@@ -1,13 +1,13 @@
 package com.nudge.app.ui.screens
 
 import android.app.Application
-import android.graphics.drawable.Drawable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.nudge.app.data.InstalledAppInfo
 import com.nudge.app.data.PreferencesManager
 import com.nudge.app.data.UsageRepository
 import com.nudge.app.service.ScreenTimeTrackerService
+import com.nudge.app.util.hasOverlayAccessPermission
 import com.nudge.app.util.isIgnoringBatteryOptimizations
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,14 +18,20 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+data class TrackedApp(
+    val packageName: String,
+    val appName: String,
+    val enabled: Boolean
+)
+
 data class SettingsUiState(
     val isTrackingEnabled: Boolean = true,
     val isOverlayEnabled: Boolean = true,
     val timeLimitMinutes: Int = PreferencesManager.DEFAULT_TIME_LIMIT,
     val dailyBudgetMinutes: Int = PreferencesManager.DEFAULT_DAILY_BUDGET,
     val isBatteryUnrestricted: Boolean = true,
-    val trackedPackages: List<String> = emptyList(),
-    val appEnabledMap: Map<String, Boolean> = emptyMap(),
+    val canDrawOverlays: Boolean = false,
+    val trackedApps: List<TrackedApp> = emptyList(),
     val installedApps: List<InstalledAppInfo> = emptyList(),
     val isLoadingApps: Boolean = true,
     val errorMessage: String? = null
@@ -36,25 +42,63 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val preferencesManager = PreferencesManager(application)
     private val usageRepository = UsageRepository(application)
 
-    private val _uiState = MutableStateFlow(
-        SettingsUiState(
-            isTrackingEnabled = preferencesManager.isTrackingEnabled,
-            isOverlayEnabled = preferencesManager.isOverlayEnabled,
-            timeLimitMinutes = preferencesManager.sessionTimeLimitMinutes,
-            dailyBudgetMinutes = preferencesManager.dailyBudgetMinutes,
-            isBatteryUnrestricted = isIgnoringBatteryOptimizations(application),
-            trackedPackages = preferencesManager.getTrackedApps().toList(),
-            appEnabledMap = preferencesManager.getTrackedApps().associateWith { pkg ->
-                preferencesManager.isAppEnabled(pkg)
-            }
-        )
-    )
+    private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     private var loadAppsJob: Job? = null
 
     init {
+        loadSettings()
         loadInstalledApps()
+    }
+
+    private fun loadSettings() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val isTracking = preferencesManager.isTrackingEnabled
+                val isOverlay = preferencesManager.isOverlayEnabled
+                val timeLimit = preferencesManager.sessionTimeLimitMinutes
+                val dailyBudget = preferencesManager.dailyBudgetMinutes
+                val isBattery = isIgnoringBatteryOptimizations(getApplication())
+                val canDraw = hasOverlayAccessPermission(getApplication())
+                val tracked = preferencesManager.getTrackedApps()
+                val trackedList = tracked.map { pkg ->
+                    TrackedApp(
+                        packageName = pkg,
+                        appName = usageRepository.getAppName(pkg),
+                        enabled = preferencesManager.isAppEnabled(pkg)
+                    )
+                }.sortedBy { it.appName.lowercase() }
+
+                _uiState.update {
+                    it.copy(
+                        isTrackingEnabled = isTracking,
+                        isOverlayEnabled = isOverlay,
+                        timeLimitMinutes = timeLimit,
+                        dailyBudgetMinutes = dailyBudget,
+                        isBatteryUnrestricted = isBattery,
+                        canDrawOverlays = canDraw,
+                        trackedApps = trackedList
+                    )
+                }
+            }
+        }
+    }
+
+    private fun reloadTrackedApps() {
+        viewModelScope.launch {
+            val list = withContext(Dispatchers.IO) {
+                val tracked = preferencesManager.getTrackedApps()
+                tracked.map { pkg ->
+                    TrackedApp(
+                        packageName = pkg,
+                        appName = usageRepository.getAppName(pkg),
+                        enabled = preferencesManager.isAppEnabled(pkg)
+                    )
+                }.sortedBy { it.appName.lowercase() }
+            }
+            _uiState.update { it.copy(trackedApps = list) }
+        }
     }
 
     fun loadInstalledApps() {
@@ -88,7 +132,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         preferencesManager.isTrackingEnabled = enabled
         _uiState.update { it.copy(isTrackingEnabled = enabled) }
         val app = getApplication<Application>()
-        if (enabled) {
+        if (enabled && preferencesManager.getEnabledTrackedApps().isNotEmpty()) {
             ScreenTimeTrackerService.start(app)
         } else {
             ScreenTimeTrackerService.stop(app)
@@ -114,52 +158,38 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun addTrackedApp(packageName: String) {
         preferencesManager.addTrackedApp(packageName)
-        val updatedTracked = preferencesManager.getTrackedApps().toList()
-        val updatedMap = _uiState.value.appEnabledMap.toMutableMap().apply {
-            this[packageName] = true
-        }
-        _uiState.update {
-            it.copy(
-                trackedPackages = updatedTracked,
-                appEnabledMap = updatedMap
-            )
+        reloadTrackedApps()
+        val app = getApplication<Application>()
+        if (preferencesManager.isTrackingEnabled) {
+            ScreenTimeTrackerService.start(app)
         }
     }
 
     fun removeTrackedApp(packageName: String) {
         preferencesManager.removeTrackedApp(packageName)
-        val updatedTracked = preferencesManager.getTrackedApps().toList()
-        val updatedMap = _uiState.value.appEnabledMap.toMutableMap().apply {
-            remove(packageName)
-        }
-        _uiState.update {
-            it.copy(
-                trackedPackages = updatedTracked,
-                appEnabledMap = updatedMap
-            )
-        }
+        reloadTrackedApps()
     }
 
     fun setAppEnabled(packageName: String, enabled: Boolean) {
         preferencesManager.setAppEnabled(packageName, enabled)
-        val updatedMap = _uiState.value.appEnabledMap.toMutableMap().apply {
-            this[packageName] = enabled
+        reloadTrackedApps()
+        val app = getApplication<Application>()
+        if (enabled && preferencesManager.isTrackingEnabled) {
+            ScreenTimeTrackerService.start(app)
         }
-        _uiState.update {
-            it.copy(appEnabledMap = updatedMap)
+    }
+
+    fun refreshPermissionStatus() {
+        val app = getApplication<Application>()
+        viewModelScope.launch(Dispatchers.IO) {
+            val unrestricted = isIgnoringBatteryOptimizations(app)
+            val canDraw = hasOverlayAccessPermission(app)
+            _uiState.update {
+                it.copy(
+                    isBatteryUnrestricted = unrestricted,
+                    canDrawOverlays = canDraw
+                )
+            }
         }
-    }
-
-    fun refreshBatteryOptimizationStatus() {
-        val unrestricted = isIgnoringBatteryOptimizations(getApplication())
-        _uiState.update { it.copy(isBatteryUnrestricted = unrestricted) }
-    }
-
-    fun getAppName(packageName: String): String {
-        return usageRepository.getAppName(packageName)
-    }
-
-    fun getAppIcon(packageName: String): Drawable? {
-        return usageRepository.getAppIcon(packageName)
     }
 }

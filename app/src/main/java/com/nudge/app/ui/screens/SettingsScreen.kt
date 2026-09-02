@@ -1,10 +1,5 @@
 package com.nudge.app.ui.screens
 
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,8 +46,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nudge.app.ui.components.AppIcon
 import com.nudge.app.ui.components.AppPickerBottomSheet
 import com.nudge.app.util.hasOverlayAccessPermission
 import com.nudge.app.util.openOverlaySettings
@@ -87,7 +81,7 @@ fun SettingsScreen(
     var showAppPicker by remember { mutableStateOf(false) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        viewModel.refreshBatteryOptimizationStatus()
+        viewModel.refreshPermissionStatus()
     }
 
     Scaffold(
@@ -185,15 +179,25 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = if (uiState.isOverlayEnabled) "Floating card appears over apps" else "Notifications only",
+                                text = if (!uiState.canDrawOverlays) {
+                                    "Permission required — tap to grant"
+                                } else if (uiState.isOverlayEnabled) {
+                                    "Floating card appears over apps"
+                                } else {
+                                    "Notifications only"
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                color = if (!uiState.canDrawOverlays && uiState.isOverlayEnabled) {
+                                    MaterialTheme.colorScheme.error
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                }
                             )
                         }
                         Switch(
-                            checked = uiState.isOverlayEnabled,
+                            checked = uiState.isOverlayEnabled && uiState.canDrawOverlays,
                             onCheckedChange = { enabled ->
-                                if (enabled && !hasOverlayAccessPermission(context)) {
+                                if (enabled && !uiState.canDrawOverlays) {
                                     openOverlaySettings(context)
                                 }
                                 viewModel.setOverlayEnabled(enabled)
@@ -455,7 +459,7 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${uiState.trackedPackages.size} apps configured",
+                            text = "${uiState.trackedApps.size} apps configured",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -484,7 +488,7 @@ fun SettingsScreen(
             }
 
             // Tracked apps list or empty state
-            if (uiState.trackedPackages.isEmpty()) {
+            if (uiState.trackedApps.isEmpty()) {
                 item {
                     Card(
                         shape = RoundedCornerShape(16.dp),
@@ -519,20 +523,14 @@ fun SettingsScreen(
                     }
                 }
             } else {
-                items(uiState.trackedPackages, key = { it }) { pkg ->
-                    val appName = remember(pkg) { viewModel.getAppName(pkg) }
-                    val appIcon = remember(pkg) { viewModel.getAppIcon(pkg) }
-                    val isEnabled = uiState.appEnabledMap[pkg] ?: true
-
+                items(uiState.trackedApps, key = { it.packageName }) { app ->
                     TrackedAppRow(
-                        appName = appName,
-                        appIcon = appIcon,
-                        isEnabled = isEnabled,
+                        app = app,
                         onCheckedChange = { checked ->
-                            viewModel.setAppEnabled(pkg, checked)
+                            viewModel.setAppEnabled(app.packageName, checked)
                         },
                         onDeleteClick = {
-                            viewModel.removeTrackedApp(pkg)
+                            viewModel.removeTrackedApp(app.packageName)
                         }
                     )
                 }
@@ -573,9 +571,9 @@ fun SettingsScreen(
             isLoading = uiState.isLoadingApps,
             errorMessage = uiState.errorMessage,
             onRetry = { viewModel.loadInstalledApps() },
-            isAppTracked = { pkg -> pkg in uiState.trackedPackages },
+            isAppTracked = { pkg -> uiState.trackedApps.any { it.packageName == pkg } },
             onAppSelected = { app ->
-                if (!uiState.trackedPackages.contains(app.packageName)) {
+                if (uiState.trackedApps.none { it.packageName == app.packageName }) {
                     viewModel.addTrackedApp(app.packageName)
                 }
             },
@@ -586,31 +584,10 @@ fun SettingsScreen(
 
 @Composable
 private fun TrackedAppRow(
-    appName: String,
-    appIcon: Drawable?,
-    isEnabled: Boolean,
+    app: TrackedApp,
     onCheckedChange: (Boolean) -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    val imageBitmap = remember(appIcon) {
-        appIcon?.let { drawable ->
-            val bitmap = if (drawable is BitmapDrawable) {
-                drawable.bitmap
-            } else {
-                val bmp = Bitmap.createBitmap(
-                    drawable.intrinsicWidth.coerceAtLeast(1),
-                    drawable.intrinsicHeight.coerceAtLeast(1),
-                    Bitmap.Config.ARGB_8888
-                )
-                val canvas = Canvas(bmp)
-                drawable.setBounds(0, 0, canvas.width, canvas.height)
-                drawable.draw(canvas)
-                bmp
-            }
-            bitmap.asImageBitmap()
-        }
-    }
-
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
@@ -628,33 +605,17 @@ private fun TrackedAppRow(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                if (imageBitmap != null) {
-                    Image(
-                        bitmap = imageBitmap,
-                        contentDescription = appName,
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(10.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = appName.firstOrNull()?.uppercase() ?: "?",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                AppIcon(
+                    packageName = app.packageName,
+                    appName = app.appName,
+                    size = 38.dp,
+                    shape = RoundedCornerShape(10.dp)
+                )
 
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    text = appName,
+                    text = app.appName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -665,7 +626,7 @@ private fun TrackedAppRow(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Switch(
-                    checked = isEnabled,
+                    checked = app.enabled,
                     onCheckedChange = onCheckedChange,
                     colors = SwitchDefaults.colors(
                         checkedTrackColor = MaterialTheme.colorScheme.primary
@@ -678,7 +639,7 @@ private fun TrackedAppRow(
                 ) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Remove $appName",
+                        contentDescription = "Remove ${app.appName}",
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                 }

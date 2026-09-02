@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
@@ -17,8 +18,8 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.nudge.app.BuildConfig
 import com.nudge.app.data.PreferencesManager
+import com.nudge.app.data.SessionTracker
 import com.nudge.app.data.UsageRepository
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,23 +31,21 @@ import kotlinx.coroutines.launch
 
 class ScreenTimeTrackerService : Service() {
 
-    private val trackerDispatcher = Dispatchers.Default.limitedParallelism(1)
+    private val trackerDispatcher = Dispatchers.IO.limitedParallelism(1)
     private val serviceScope = CoroutineScope(SupervisorJob() + trackerDispatcher)
     private var trackingJob: Job? = null
     private lateinit var usageRepository: UsageRepository
     private lateinit var preferencesManager: PreferencesManager
+    private lateinit var sessionTracker: SessionTracker
     private var overlayManager: OverlayManager? = null
 
     @Volatile
     private var isScreenOn = true
-    private var currentActivePackage: String? = null // only touched on trackerDispatcher
-    private var sessionStartTime: Long = 0L // only touched on trackerDispatcher
-    private val alertCooldownMap = ConcurrentHashMap<String, Long>()
 
     companion object {
-        private const val ALERT_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes
-        private const val POLL_INTERVAL_MS = 1500L // 1.5 seconds
-        private const val RESTART_DELAY_MS = 1000L // 1 second
+        private const val FAST_POLL_INTERVAL_MS = 1500L
+        private const val SLOW_POLL_INTERVAL_MS = 5000L
+        private const val RESTART_DELAY_MS = 1000L
         private const val TAG = "ScreenTimeTracker"
 
         fun start(context: Context) {
@@ -76,8 +75,8 @@ class ScreenTimeTrackerService : Service() {
                     isScreenOn = false
                     stopTrackingLoop()
                     serviceScope.launch {
-                        currentActivePackage = null
-                        sessionStartTime = 0L
+                        usageRepository.resetForegroundCursor()
+                        sessionTracker.onScreenOff()
                     }
                     overlayManager?.dismiss()
                 }
@@ -90,12 +89,18 @@ class ScreenTimeTrackerService : Service() {
         usageRepository = UsageRepository(this)
         preferencesManager = PreferencesManager(this)
         overlayManager = OverlayManager(this)
+        sessionTracker = SessionTracker(
+            limitMinutesProvider = { preferencesManager.sessionTimeLimitMinutes }
+        )
+
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        isScreenOn = powerManager?.isInteractive ?: true
 
         // Populate cooldown cache from persisted preferences
         preferencesManager.getTrackedApps().forEach { pkg ->
             val lastAlert = preferencesManager.getLastAlertTime(pkg)
             if (lastAlert > 0L) {
-                alertCooldownMap[pkg] = lastAlert
+                sessionTracker.setLastAlertTime(pkg, lastAlert)
             }
         }
 
@@ -111,6 +116,11 @@ class ScreenTimeTrackerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!preferencesManager.isTrackingEnabled || preferencesManager.getEnabledTrackedApps().isEmpty()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         val notification = NotificationHelper.buildServiceNotification(
             this, "Monitoring social media usage..."
         )
@@ -144,7 +154,8 @@ class ScreenTimeTrackerService : Service() {
         trackingJob = serviceScope.launch {
             while (isActive && isScreenOn) {
                 checkForegroundApp()
-                delay(POLL_INTERVAL_MS)
+                val delayMs = getNextPollDelay()
+                delay(delayMs)
             }
         }
     }
@@ -154,114 +165,98 @@ class ScreenTimeTrackerService : Service() {
         trackingJob = null
     }
 
-    private fun checkForegroundApp() {
-        if (!preferencesManager.isTrackingEnabled) return
-
-        val trackedPackages = preferencesManager.getEnabledTrackedApps()
-        val fgPackage = usageRepository.getCurrentForegroundPackage()
-        val currentTime = System.currentTimeMillis()
-
-        if (fgPackage != null && fgPackage in trackedPackages) {
-            if (fgPackage != currentActivePackage) {
-                // New tracked app session started
-                if (overlayManager?.isShowing() == true) {
-                    overlayManager?.dismiss()
-                }
-                currentActivePackage = fgPackage
-                sessionStartTime = currentTime
-                if (BuildConfig.DEBUG) {
-                    Log.d(TAG, "Detected tracked app opened: $fgPackage")
-                }
+    private fun getNextPollDelay(): Long {
+        val activePkg = sessionTracker.currentActivePackage
+        return if (activePkg != null) {
+            val limitMs = preferencesManager.sessionTimeLimitMinutes * 60 * 1000L
+            val elapsed = System.currentTimeMillis() - sessionTracker.sessionStartTime
+            val remaining = limitMs - elapsed
+            if (remaining > FAST_POLL_INTERVAL_MS) {
+                remaining.coerceIn(FAST_POLL_INTERVAL_MS, SLOW_POLL_INTERVAL_MS)
             } else {
-                // Continuing existing session — check if limit exceeded
-                val sessionDurationMs = currentTime - sessionStartTime
-                val limitMs = preferencesManager.sessionTimeLimitMinutes * 60 * 1000L
-
-                if (BuildConfig.DEBUG) {
-                    Log.d(
-                        TAG,
-                        "Session in progress for $fgPackage: ${sessionDurationMs / 1000}s / ${limitMs / 1000}s"
-                    )
-                }
-
-                if (sessionDurationMs >= limitMs) {
-                    sendAlertIfNeeded(fgPackage, sessionDurationMs)
-                }
+                FAST_POLL_INTERVAL_MS
             }
         } else {
-            // Not on a tracked app
-            if (currentActivePackage != null) {
-                if (BuildConfig.DEBUG) {
-                    Log.d(TAG, "Exited tracked app: $currentActivePackage")
-                }
-            }
-            if (overlayManager?.isShowing() == true) {
-                overlayManager?.dismiss()
-            }
-            currentActivePackage = null
-            sessionStartTime = 0L
+            SLOW_POLL_INTERVAL_MS
         }
     }
 
-    private fun sendAlertIfNeeded(packageName: String, sessionDurationMs: Long) {
+    private fun checkForegroundApp() {
+        val trackedPackages = preferencesManager.getEnabledTrackedApps()
+        if (!preferencesManager.isTrackingEnabled || trackedPackages.isEmpty()) {
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "No enabled tracked apps or tracking disabled, stopping service")
+            }
+            stopSelf()
+            return
+        }
+
+        val fgPackage = usageRepository.getCurrentForegroundPackage()
         val now = System.currentTimeMillis()
-        val lastAlert = alertCooldownMap[packageName] ?: 0L
+        val action = sessionTracker.onTick(fgPackage, trackedPackages, now)
 
-        if (now - lastAlert > ALERT_COOLDOWN_MS) {
-            alertCooldownMap[packageName] = now
-            preferencesManager.setLastAlertTime(packageName, now)
+        when (action) {
+            is SessionTracker.Action.Nudge -> {
+                preferencesManager.setLastAlertTime(action.packageName, now)
+                triggerNudge(action.packageName, action.minutesUsed)
+            }
+            is SessionTracker.Action.Dismiss -> {
+                if (overlayManager?.isShowing() == true) {
+                    overlayManager?.dismiss()
+                }
+            }
+            is SessionTracker.Action.None -> {
+                // No action needed
+            }
+        }
+    }
 
-            val appName = usageRepository.getAppName(packageName)
-            val appIcon = usageRepository.getAppIcon(packageName)
-            val minutesUsed = sessionDurationMs / (60 * 1000L)
+    private fun triggerNudge(packageName: String, minutesUsed: Long) {
+        val appName = usageRepository.getAppName(packageName)
+        val appIcon = usageRepository.getAppIcon(packageName)
 
-            // 1. Show soft-nudge floating popup window if enabled and permitted
-            if (preferencesManager.isOverlayEnabled && OverlayManager.canDrawOverlays(this)) {
-                overlayManager?.show(
-                    appName = appName,
-                    appIcon = appIcon,
-                    minutesUsed = minutesUsed,
-                    onTakeBreak = {
-                        serviceScope.launch {
-                            currentActivePackage = null
-                            sessionStartTime = 0L
-                        }
-                    },
-                    onSnooze = {
-                        serviceScope.launch {
-                            // Push session start time so next alert triggers in 5 minutes
-                            val limitMs = preferencesManager.sessionTimeLimitMinutes * 60 * 1000L
-                            sessionStartTime = System.currentTimeMillis() - (limitMs - ALERT_COOLDOWN_MS).coerceAtLeast(0L)
-                            val snoozeTime = System.currentTimeMillis()
-                            alertCooldownMap[packageName] = snoozeTime
-                            preferencesManager.setLastAlertTime(packageName, snoozeTime)
-                        }
-                    },
-                    onDismiss = {
-                        // Cooldown is set, user acknowledged
+        // 1. Show soft-nudge floating popup window if enabled and permitted
+        if (preferencesManager.isOverlayEnabled && OverlayManager.canDrawOverlays(this)) {
+            overlayManager?.show(
+                appName = appName,
+                appIcon = appIcon,
+                minutesUsed = minutesUsed,
+                onTakeBreak = {
+                    serviceScope.launch {
+                        sessionTracker.onTakeBreak()
                     }
-                )
-            }
-
-            // 2. Also send backup high-priority notification
-            val notification = NotificationHelper.buildAlertNotification(
-                this, appName, minutesUsed
+                },
+                onSnooze = {
+                    serviceScope.launch {
+                        val snoozeTime = System.currentTimeMillis()
+                        sessionTracker.onSnooze(snoozeTime, packageName)
+                        preferencesManager.setLastAlertTime(packageName, snoozeTime)
+                    }
+                },
+                onDismiss = {
+                    // Cooldown is set, user acknowledged
+                }
             )
+        }
 
-            try {
-                NotificationManagerCompat.from(this).notify(
-                    NotificationHelper.getAlertNotificationId(packageName),
-                    notification
-                )
-            } catch (_: SecurityException) {
-                // POST_NOTIFICATIONS not granted
-            }
+        // 2. Also send backup high-priority notification
+        val notification = NotificationHelper.buildAlertNotification(
+            this, appName, minutesUsed
+        )
+
+        try {
+            NotificationManagerCompat.from(this).notify(
+                NotificationHelper.getAlertNotificationId(packageName),
+                notification
+            )
+        } catch (_: SecurityException) {
+            // POST_NOTIFICATIONS not granted
         }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        if (preferencesManager.isTrackingEnabled) {
+        if (preferencesManager.isTrackingEnabled && preferencesManager.getEnabledTrackedApps().isNotEmpty()) {
             val restartServiceIntent = Intent(applicationContext, ScreenTimeTrackerService::class.java).also {
                 it.setPackage(packageName)
             }

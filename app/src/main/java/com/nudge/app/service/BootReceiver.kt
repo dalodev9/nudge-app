@@ -7,6 +7,9 @@ import android.util.Log
 import com.nudge.app.BuildConfig
 import com.nudge.app.data.PreferencesManager
 import com.nudge.app.util.hasUsageStatsPermission
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class BootReceiver : BroadcastReceiver() {
 
@@ -22,12 +25,22 @@ class BootReceiver : BroadcastReceiver() {
             action == "android.intent.action.QUICKBOOT_POWERON" ||
             action == Intent.ACTION_MY_PACKAGE_REPLACED
         ) {
-            val preferencesManager = PreferencesManager(context)
-            if (preferencesManager.isTrackingEnabled && hasUsageStatsPermission(context)) {
-                if (BuildConfig.DEBUG) {
-                    Log.d("ScreenTimeTracker", "Auto-starting ScreenTimeTrackerService from BootReceiver")
+            val pendingResult = goAsync()
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val preferencesManager = PreferencesManager(context)
+                    if (preferencesManager.isTrackingEnabled &&
+                        preferencesManager.getEnabledTrackedApps().isNotEmpty() &&
+                        hasUsageStatsPermission(context)
+                    ) {
+                        if (BuildConfig.DEBUG) {
+                            Log.d("ScreenTimeTracker", "Auto-starting ScreenTimeTrackerService from BootReceiver")
+                        }
+                        ScreenTimeTrackerService.start(context)
+                    }
+                } finally {
+                    pendingResult.finish()
                 }
-                ScreenTimeTrackerService.start(context)
             }
         }
     }

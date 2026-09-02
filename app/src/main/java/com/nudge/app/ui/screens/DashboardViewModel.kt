@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.nudge.app.data.AppUsageInfo
 import com.nudge.app.data.PreferencesManager
 import com.nudge.app.data.UsageRepository
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,10 +28,12 @@ data class DashboardUiState(
     val hasUsagePermission: Boolean = true
 )
 
-class DashboardViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val usageRepository = UsageRepository(application)
-    private val preferencesManager = PreferencesManager(application)
+class DashboardViewModel @JvmOverloads constructor(
+    application: Application,
+    private val usageRepository: UsageRepository = UsageRepository(application),
+    private val preferencesManager: PreferencesManager = PreferencesManager(application),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
@@ -53,7 +56,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             }
 
             runCatching {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     val trackedPackages = preferencesManager.getTrackedApps()
                     val hasConfigured = trackedPackages.isNotEmpty()
                     val appUsages = usageRepository.getTodayUsageForTrackedApps(trackedPackages)

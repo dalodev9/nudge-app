@@ -9,15 +9,18 @@ import android.graphics.drawable.Drawable
 import android.os.Build
 import java.util.Calendar
 
-class UsageRepository(private val context: Context) {
+open class UsageRepository(private val context: Context) {
 
     private val usageStatsManager =
-        context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
     private val packageManager: PackageManager = context.packageManager
+
+    private var lastEventQueryTime = 0L
+    private var lastForegroundApp: String? = null
 
     /**
      * Queries all launchable apps on the device, sorted alphabetically.
-     * Excludes this app itself.
+     * Excludes this app itself. Does not eagerly load icon drawables.
      */
     fun getInstalledApps(): List<InstalledAppInfo> {
         val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply {
@@ -44,15 +47,9 @@ class UsageRepository(private val context: Context) {
             .map { resolveInfo ->
                 val pkg = resolveInfo.activityInfo.packageName
                 val label = resolveInfo.loadLabel(packageManager)?.toString() ?: pkg
-                val icon = try {
-                    resolveInfo.loadIcon(packageManager)
-                } catch (_: Exception) {
-                    null
-                }
                 InstalledAppInfo(
                     packageName = pkg,
-                    appName = label,
-                    icon = icon
+                    appName = label
                 )
             }
             .filter { it.packageName != selfPackageName }
@@ -95,7 +92,7 @@ class UsageRepository(private val context: Context) {
     /**
      * Returns today's aggregated usage stats for all user-tracked packages.
      */
-    fun getTodayUsageForTrackedApps(trackedPackages: Set<String>): List<AppUsageInfo> {
+    open fun getTodayUsageForTrackedApps(trackedPackages: Set<String>): List<AppUsageInfo> {
         if (trackedPackages.isEmpty()) return emptyList()
 
         val calendar = Calendar.getInstance().apply {
@@ -107,7 +104,7 @@ class UsageRepository(private val context: Context) {
         val startTime = calendar.timeInMillis
         val endTime = System.currentTimeMillis()
 
-        val allStats = usageStatsManager.queryAndAggregateUsageStats(startTime, endTime)
+        val allStats = usageStatsManager?.queryAndAggregateUsageStats(startTime, endTime) ?: emptyMap()
 
         val results = mutableListOf<AppUsageInfo>()
 
@@ -117,13 +114,11 @@ class UsageRepository(private val context: Context) {
             val usageMinutes = totalTimeMs / (1000 * 60)
 
             val name = getAppName(pkg)
-            val icon = getAppIcon(pkg)
 
             results.add(
                 AppUsageInfo(
                     packageName = pkg,
                     appName = name,
-                    icon = icon,
                     usageMinutes = usageMinutes
                 )
             )
@@ -134,19 +129,22 @@ class UsageRepository(private val context: Context) {
     }
 
     /**
-     * Detects the currently active foreground app by scanning recent usage events.
+     * Detects the currently active foreground app by scanning a narrow delta of recent usage events.
      */
     fun getCurrentForegroundPackage(): String? {
         val endTime = System.currentTimeMillis()
-        val startTime = endTime - (1000 * 60 * 60 * 2) // 2 hours window
+        val startTime = if (lastEventQueryTime == 0L) {
+            endTime - 60_000L
+        } else {
+            (lastEventQueryTime - 1_000L).coerceAtMost(endTime)
+        }
+        lastEventQueryTime = endTime
 
         val events = try {
-            usageStatsManager.queryEvents(startTime, endTime)
+            usageStatsManager?.queryEvents(startTime, endTime)
         } catch (_: Exception) {
             null
         }
-
-        var lastForegroundApp: String? = null
 
         if (events != null) {
             val event = UsageEvents.Event()
@@ -174,10 +172,10 @@ class UsageRepository(private val context: Context) {
             }
         }
 
-        // Fallback: Check queryUsageStats for recent foreground usage if events was empty
-        if (lastForegroundApp == null) {
+        // Fallback on initial cold scan if events were empty
+        if (lastForegroundApp == null && startTime <= endTime - 30_000L) {
             val recentStats = try {
-                usageStatsManager.queryUsageStats(
+                usageStatsManager?.queryUsageStats(
                     UsageStatsManager.INTERVAL_DAILY,
                     endTime - (1000 * 60 * 10),
                     endTime
@@ -196,6 +194,11 @@ class UsageRepository(private val context: Context) {
         }
 
         return lastForegroundApp
+    }
+
+    fun resetForegroundCursor() {
+        lastEventQueryTime = 0L
+        lastForegroundApp = null
     }
 }
 
