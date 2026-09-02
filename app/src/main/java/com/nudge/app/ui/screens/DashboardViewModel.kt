@@ -7,21 +7,24 @@ import com.nudge.app.data.AppUsageInfo
 import com.nudge.app.data.PreferencesManager
 import com.nudge.app.data.UsageRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class DashboardUiState(
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
     val totalMinutes: Long = 0,
-    val limitMinutes: Int = 10,
+    val dailyBudgetMinutes: Int = PreferencesManager.DEFAULT_DAILY_BUDGET,
     val appUsages: List<AppUsageInfo> = emptyList(),
     val isTrackingEnabled: Boolean = true,
-    val hasConfiguredApps: Boolean = false
+    val hasConfiguredApps: Boolean = false,
+    val errorMessage: String? = null,
+    val hasUsagePermission: Boolean = true
 )
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
@@ -32,42 +35,70 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
+    private var refreshJob: Job? = null
+
     init {
         refreshData(showLoading = true)
     }
 
     fun refreshData(showLoading: Boolean = false, isPullToRefresh: Boolean = false) {
-        viewModelScope.launch(Dispatchers.IO) {
-            if (showLoading) {
-                _uiState.update { it.copy(isLoading = true) }
-            } else if (isPullToRefresh) {
-                _uiState.update { it.copy(isRefreshing = true) }
-            }
-
-            val trackedPackages = preferencesManager.getTrackedApps()
-            val hasConfigured = trackedPackages.isNotEmpty()
-            val appUsages = usageRepository.getTodayUsageForTrackedApps(trackedPackages)
-
-            val totalMinutes = appUsages.sumOf { it.usageMinutes }
-            val limitMinutes = preferencesManager.sessionTimeLimitMinutes
-
-            if (isPullToRefresh) {
-                // Ensure a smooth rotation animation before retracting
-                delay(500L)
-            }
-
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
             _uiState.update {
                 it.copy(
-                    isLoading = false,
-                    isRefreshing = false,
-                    totalMinutes = totalMinutes,
-                    limitMinutes = limitMinutes,
-                    appUsages = appUsages,
-                    isTrackingEnabled = preferencesManager.isTrackingEnabled,
-                    hasConfiguredApps = hasConfigured
+                    isLoading = if (showLoading) true else (if (isPullToRefresh) false else it.isLoading),
+                    isRefreshing = isPullToRefresh,
+                    errorMessage = null
                 )
+            }
+
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val trackedPackages = preferencesManager.getTrackedApps()
+                    val hasConfigured = trackedPackages.isNotEmpty()
+                    val appUsages = usageRepository.getTodayUsageForTrackedApps(trackedPackages)
+                    val totalMinutes = appUsages.sumOf { it.usageMinutes }
+                    val dailyBudget = preferencesManager.dailyBudgetMinutes
+                    val isTracking = preferencesManager.isTrackingEnabled
+                    DataResult(appUsages, totalMinutes, dailyBudget, hasConfigured, isTracking)
+                }
+            }.onSuccess { result ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isRefreshing = false,
+                        totalMinutes = result.totalMinutes,
+                        dailyBudgetMinutes = result.dailyBudgetMinutes,
+                        appUsages = result.appUsages,
+                        isTrackingEnabled = result.isTrackingEnabled,
+                        hasConfiguredApps = result.hasConfiguredApps,
+                        hasUsagePermission = true,
+                        errorMessage = null
+                    )
+                }
+            }.onFailure { e ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isRefreshing = false,
+                        hasUsagePermission = e !is SecurityException,
+                        errorMessage = if (e is SecurityException) {
+                            "Usage Access permission required to track app usage."
+                        } else {
+                            "Couldn't read usage stats. Check Usage Access."
+                        }
+                    )
+                }
             }
         }
     }
+
+    private data class DataResult(
+        val appUsages: List<AppUsageInfo>,
+        val totalMinutes: Long,
+        val dailyBudgetMinutes: Int,
+        val hasConfiguredApps: Boolean,
+        val isTrackingEnabled: Boolean
+    )
 }
 

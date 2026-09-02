@@ -19,6 +19,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nudge.app.ui.theme.UsageBarColors
@@ -81,7 +82,7 @@ fun UsageBarChart(
                 0f,
                 yOffset + labelHeightPx - 2.dp.toPx(),
                 android.graphics.Paint().apply {
-                    color = textColor.hashCode()
+                    color = textColor.toArgb()
                     textSize = 13.sp.toPx()
                     isAntiAlias = true
                     typeface = android.graphics.Typeface.create(

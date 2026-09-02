@@ -14,10 +14,11 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import com.nudge.app.BuildConfig
 import com.nudge.app.data.PreferencesManager
-import com.nudge.app.data.SocialMediaApp
 import com.nudge.app.data.UsageRepository
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,28 +30,33 @@ import kotlinx.coroutines.launch
 
 class ScreenTimeTrackerService : Service() {
 
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val trackerDispatcher = Dispatchers.Default.limitedParallelism(1)
+    private val serviceScope = CoroutineScope(SupervisorJob() + trackerDispatcher)
     private var trackingJob: Job? = null
     private lateinit var usageRepository: UsageRepository
     private lateinit var preferencesManager: PreferencesManager
     private var overlayManager: OverlayManager? = null
 
+    @Volatile
     private var isScreenOn = true
-    private var currentActivePackage: String? = null
-    private var sessionStartTime: Long = 0L
-    private val alertCooldownMap = mutableMapOf<String, Long>()
+    private var currentActivePackage: String? = null // only touched on trackerDispatcher
+    private var sessionStartTime: Long = 0L // only touched on trackerDispatcher
+    private val alertCooldownMap = ConcurrentHashMap<String, Long>()
 
     companion object {
         private const val ALERT_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes
         private const val POLL_INTERVAL_MS = 1500L // 1.5 seconds
         private const val RESTART_DELAY_MS = 1000L // 1 second
+        private const val TAG = "ScreenTimeTracker"
 
         fun start(context: Context) {
             val intent = Intent(context, ScreenTimeTrackerService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            try {
+                ContextCompat.startForegroundService(context, intent)
+            } catch (e: Exception) {
+                if (BuildConfig.DEBUG) {
+                    Log.w(TAG, "FGS start refused", e)
+                }
             }
         }
 
@@ -69,8 +75,10 @@ class ScreenTimeTrackerService : Service() {
                 Intent.ACTION_SCREEN_OFF -> {
                     isScreenOn = false
                     stopTrackingLoop()
-                    currentActivePackage = null
-                    sessionStartTime = 0L
+                    serviceScope.launch {
+                        currentActivePackage = null
+                        sessionStartTime = 0L
+                    }
                     overlayManager?.dismiss()
                 }
             }
@@ -107,15 +115,23 @@ class ScreenTimeTrackerService : Service() {
             this, "Monitoring social media usage..."
         )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            ServiceCompat.startForeground(
-                this,
-                NotificationHelper.SERVICE_NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-            )
-        } else {
-            startForeground(NotificationHelper.SERVICE_NOTIFICATION_ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceCompat.startForeground(
+                    this,
+                    NotificationHelper.SERVICE_NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(NotificationHelper.SERVICE_NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) {
+                Log.w(TAG, "Failed to start foreground service", e)
+            }
+            stopSelf()
+            return START_NOT_STICKY
         }
 
         startTrackingLoop()
@@ -154,7 +170,7 @@ class ScreenTimeTrackerService : Service() {
                 currentActivePackage = fgPackage
                 sessionStartTime = currentTime
                 if (BuildConfig.DEBUG) {
-                    Log.d("ScreenTimeTracker", "Detected tracked app opened: $fgPackage")
+                    Log.d(TAG, "Detected tracked app opened: $fgPackage")
                 }
             } else {
                 // Continuing existing session — check if limit exceeded
@@ -163,7 +179,7 @@ class ScreenTimeTrackerService : Service() {
 
                 if (BuildConfig.DEBUG) {
                     Log.d(
-                        "ScreenTimeTracker",
+                        TAG,
                         "Session in progress for $fgPackage: ${sessionDurationMs / 1000}s / ${limitMs / 1000}s"
                     )
                 }
@@ -176,7 +192,7 @@ class ScreenTimeTrackerService : Service() {
             // Not on a tracked app
             if (currentActivePackage != null) {
                 if (BuildConfig.DEBUG) {
-                    Log.d("ScreenTimeTracker", "Exited tracked app: $currentActivePackage")
+                    Log.d(TAG, "Exited tracked app: $currentActivePackage")
                 }
             }
             if (overlayManager?.isShowing() == true) {
@@ -206,16 +222,20 @@ class ScreenTimeTrackerService : Service() {
                     appIcon = appIcon,
                     minutesUsed = minutesUsed,
                     onTakeBreak = {
-                        currentActivePackage = null
-                        sessionStartTime = 0L
+                        serviceScope.launch {
+                            currentActivePackage = null
+                            sessionStartTime = 0L
+                        }
                     },
                     onSnooze = {
-                        // Push session start time so next alert triggers in 5 minutes
-                        val limitMs = preferencesManager.sessionTimeLimitMinutes * 60 * 1000L
-                        sessionStartTime = System.currentTimeMillis() - (limitMs - 5 * 60 * 1000L).coerceAtLeast(0L)
-                        val snoozeTime = System.currentTimeMillis()
-                        alertCooldownMap[packageName] = snoozeTime
-                        preferencesManager.setLastAlertTime(packageName, snoozeTime)
+                        serviceScope.launch {
+                            // Push session start time so next alert triggers in 5 minutes
+                            val limitMs = preferencesManager.sessionTimeLimitMinutes * 60 * 1000L
+                            sessionStartTime = System.currentTimeMillis() - (limitMs - ALERT_COOLDOWN_MS).coerceAtLeast(0L)
+                            val snoozeTime = System.currentTimeMillis()
+                            alertCooldownMap[packageName] = snoozeTime
+                            preferencesManager.setLastAlertTime(packageName, snoozeTime)
+                        }
                     },
                     onDismiss = {
                         // Cooldown is set, user acknowledged
@@ -264,47 +284,22 @@ class ScreenTimeTrackerService : Service() {
             val triggerAtMillis = SystemClock.elapsedRealtime() + RESTART_DELAY_MS
 
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    if (alarmManager?.canScheduleExactAlarms() == true) {
-                        alarmManager.setExactAndAllowWhileIdle(
-                            AlarmManager.ELAPSED_REALTIME,
-                            triggerAtMillis,
-                            restartServicePendingIntent
-                        )
-                    } else {
-                        alarmManager?.setAndAllowWhileIdle(
-                            AlarmManager.ELAPSED_REALTIME,
-                            triggerAtMillis,
-                            restartServicePendingIntent
-                        )
-                    }
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    alarmManager?.setExactAndAllowWhileIdle(
-                        AlarmManager.ELAPSED_REALTIME,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager?.setAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP,
                         triggerAtMillis,
                         restartServicePendingIntent
                     )
                 } else {
                     alarmManager?.set(
-                        AlarmManager.ELAPSED_REALTIME,
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP,
                         triggerAtMillis,
                         restartServicePendingIntent
                     )
                 }
-            } catch (_: SecurityException) {
-                // Fallback to inexact alarm if exact alarm permission is missing or revoked
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    alarmManager?.setAndAllowWhileIdle(
-                        AlarmManager.ELAPSED_REALTIME,
-                        triggerAtMillis,
-                        restartServicePendingIntent
-                    )
-                } else {
-                    alarmManager?.set(
-                        AlarmManager.ELAPSED_REALTIME,
-                        triggerAtMillis,
-                        restartServicePendingIntent
-                    )
+            } catch (e: Exception) {
+                if (BuildConfig.DEBUG) {
+                    Log.w(TAG, "Failed to schedule restart alarm", e)
                 }
             }
         }

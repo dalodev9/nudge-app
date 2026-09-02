@@ -36,17 +36,17 @@ fun UsageCard(
     appName: String,
     icon: Drawable?,
     usageMinutes: Long,
-    limitMinutes: Int,
+    dailyBudgetMinutes: Int,
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
     val hours = usageMinutes / 60
     val mins = usageMinutes % 60
     val timeText = if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
-    val progress = if (limitMinutes > 0) {
-        (usageMinutes.toFloat() / limitMinutes).coerceIn(0f, 1f)
+    val progress = if (dailyBudgetMinutes > 0) {
+        (usageMinutes.toFloat() / dailyBudgetMinutes).coerceIn(0f, 1f)
     } else 0f
-    val isOverLimit = usageMinutes > limitMinutes
+    val isOverLimit = usageMinutes > dailyBudgetMinutes
 
     val imageBitmap = remember(icon) {
         icon?.let { drawable ->

@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun CircularProgress(
     totalMinutes: Long,
-    limitMinutes: Int,
+    dailyBudgetMinutes: Int,
     modifier: Modifier = Modifier,
     size: Dp = 200.dp,
     strokeWidth: Dp = 14.dp,
@@ -37,11 +37,11 @@ fun CircularProgress(
     progressColor: Color = MaterialTheme.colorScheme.primary,
     overLimitColor: Color = MaterialTheme.colorScheme.error
 ) {
-    val progress = if (limitMinutes > 0) {
-        (totalMinutes.toFloat() / limitMinutes).coerceIn(0f, 1f)
+    val progress = if (dailyBudgetMinutes > 0) {
+        (totalMinutes.toFloat() / dailyBudgetMinutes).coerceIn(0f, 1f)
     } else 0f
 
-    val isOverLimit = totalMinutes > limitMinutes
+    val isOverLimit = totalMinutes > dailyBudgetMinutes
     val arcColor = if (isOverLimit) overLimitColor else progressColor
 
     var animationTarget by remember { mutableFloatStateOf(0f) }
@@ -102,7 +102,7 @@ fun CircularProgress(
                 color = if (isOverLimit) overLimitColor else MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "of ${limitMinutes}m limit",
+                text = "of ${dailyBudgetMinutes}m today",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )

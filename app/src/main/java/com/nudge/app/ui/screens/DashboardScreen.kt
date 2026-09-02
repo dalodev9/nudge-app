@@ -36,8 +36,10 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -49,6 +51,7 @@ import com.nudge.app.ui.components.UsageBarChart
 import com.nudge.app.ui.components.UsageBarData
 import com.nudge.app.ui.components.UsageCard
 import com.nudge.app.ui.components.getBarColor
+import com.nudge.app.util.openUsageAccessSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +59,7 @@ fun DashboardScreen(
     onNavigateToSettings: () -> Unit,
     viewModel: DashboardViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
 
@@ -120,6 +124,92 @@ fun DashboardScreen(
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    if (!uiState.hasUsagePermission) {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "Usage Access Required",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = uiState.errorMessage ?: "Please grant Usage Access permission to view screen time.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Button(
+                                        onClick = { openUsageAccessSettings(context) },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.error
+                                        )
+                                    ) {
+                                        Text("Grant Permission")
+                                    }
+                                }
+                            }
+                        }
+                    } else if (uiState.errorMessage != null) {
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                        Text(
+                                            text = "Unable to load usage data",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                        Text(
+                                            text = uiState.errorMessage ?: "Something went wrong",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                    Button(
+                                        onClick = { viewModel.refreshData(showLoading = true) },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.error
+                                        )
+                                    ) {
+                                        Text("Retry")
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Circular progress header
                     item {
                         Column(
@@ -130,7 +220,7 @@ fun DashboardScreen(
 
                             CircularProgress(
                                 totalMinutes = uiState.totalMinutes,
-                                limitMinutes = uiState.limitMinutes
+                                dailyBudgetMinutes = uiState.dailyBudgetMinutes
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -243,7 +333,7 @@ fun DashboardScreen(
                                 appName = info.appName,
                                 icon = info.icon,
                                 usageMinutes = info.usageMinutes,
-                                limitMinutes = uiState.limitMinutes,
+                                dailyBudgetMinutes = uiState.dailyBudgetMinutes,
                                 accentColor = getBarColor(index)
                             )
                         }

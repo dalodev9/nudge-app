@@ -80,6 +80,10 @@ fun SettingsScreen(
         mutableFloatStateOf(uiState.timeLimitMinutes.toFloat())
     }
 
+    var dailyBudgetSlider by remember(uiState.dailyBudgetMinutes) {
+        mutableFloatStateOf(uiState.dailyBudgetMinutes.toFloat())
+    }
+
     var showAppPicker by remember { mutableStateOf(false) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -351,6 +355,90 @@ fun SettingsScreen(
                 }
             }
 
+            // Daily Screen Time Budget section
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Daily Screen Time Budget",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Target limit across all tracked apps today",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        val budgetMins = dailyBudgetSlider.roundToInt()
+                        val budgetHours = budgetMins / 60
+                        val budgetRemMins = budgetMins % 60
+                        val budgetText = if (budgetHours > 0 && budgetRemMins > 0) {
+                            "${budgetHours}h ${budgetRemMins}m (${budgetMins} min)"
+                        } else if (budgetHours > 0) {
+                            "${budgetHours} hours (${budgetMins} min)"
+                        } else {
+                            "$budgetMins minutes"
+                        }
+
+                        Text(
+                            text = budgetText,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Slider(
+                            value = dailyBudgetSlider,
+                            onValueChange = { dailyBudgetSlider = it },
+                            onValueChangeFinished = {
+                                viewModel.setDailyBudget(dailyBudgetSlider.roundToInt())
+                            },
+                            valueRange = 15f..480f,
+                            steps = 30,
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "15 min",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = "8 hours",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
+            }
+
             // Tracked apps section header with + Add App button
             item {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -483,6 +571,8 @@ fun SettingsScreen(
         AppPickerBottomSheet(
             installedApps = uiState.installedApps,
             isLoading = uiState.isLoadingApps,
+            errorMessage = uiState.errorMessage,
+            onRetry = { viewModel.loadInstalledApps() },
             isAppTracked = { pkg -> pkg in uiState.trackedPackages },
             onAppSelected = { app ->
                 if (!uiState.trackedPackages.contains(app.packageName)) {

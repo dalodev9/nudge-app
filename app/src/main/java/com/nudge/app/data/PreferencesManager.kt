@@ -13,6 +13,10 @@ class PreferencesManager(context: Context) {
         get() = prefs.getInt(KEY_TIME_LIMIT, DEFAULT_TIME_LIMIT)
         set(value) = prefs.edit().putInt(KEY_TIME_LIMIT, value).apply()
 
+    var dailyBudgetMinutes: Int
+        get() = prefs.getInt(KEY_DAILY_BUDGET, DEFAULT_DAILY_BUDGET)
+        set(value) = prefs.edit().putInt(KEY_DAILY_BUDGET, value).apply()
+
     var isTrackingEnabled: Boolean
         get() = prefs.getBoolean(KEY_TRACKING_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_TRACKING_ENABLED, value).apply()
@@ -88,12 +92,14 @@ class PreferencesManager(context: Context) {
     companion object {
         private const val PREFS_NAME = "screen_time_prefs"
         private const val KEY_TIME_LIMIT = "session_time_limit_minutes"
+        private const val KEY_DAILY_BUDGET = "daily_budget_minutes"
         private const val KEY_TRACKING_ENABLED = "tracking_enabled"
         private const val KEY_OVERLAY_ENABLED = "overlay_enabled"
         private const val KEY_TRACKED_APPS = "tracked_apps"
         private const val KEY_DISABLED_APPS = "disabled_apps"
         private const val KEY_ALERT_COOLDOWN_PREFIX = "alert_cooldown_"
         const val DEFAULT_TIME_LIMIT = 10
+        const val DEFAULT_DAILY_BUDGET = 120
     }
 }
 

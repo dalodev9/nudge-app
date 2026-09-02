@@ -10,21 +10,25 @@ import com.nudge.app.data.UsageRepository
 import com.nudge.app.service.ScreenTimeTrackerService
 import com.nudge.app.util.isIgnoringBatteryOptimizations
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class SettingsUiState(
     val isTrackingEnabled: Boolean = true,
     val isOverlayEnabled: Boolean = true,
     val timeLimitMinutes: Int = PreferencesManager.DEFAULT_TIME_LIMIT,
+    val dailyBudgetMinutes: Int = PreferencesManager.DEFAULT_DAILY_BUDGET,
     val isBatteryUnrestricted: Boolean = true,
     val trackedPackages: List<String> = emptyList(),
     val appEnabledMap: Map<String, Boolean> = emptyMap(),
     val installedApps: List<InstalledAppInfo> = emptyList(),
-    val isLoadingApps: Boolean = true
+    val isLoadingApps: Boolean = true,
+    val errorMessage: String? = null
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -37,6 +41,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             isTrackingEnabled = preferencesManager.isTrackingEnabled,
             isOverlayEnabled = preferencesManager.isOverlayEnabled,
             timeLimitMinutes = preferencesManager.sessionTimeLimitMinutes,
+            dailyBudgetMinutes = preferencesManager.dailyBudgetMinutes,
             isBatteryUnrestricted = isIgnoringBatteryOptimizations(application),
             trackedPackages = preferencesManager.getTrackedApps().toList(),
             appEnabledMap = preferencesManager.getTrackedApps().associateWith { pkg ->
@@ -46,19 +51,35 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
+    private var loadAppsJob: Job? = null
+
     init {
         loadInstalledApps()
     }
 
     fun loadInstalledApps() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { it.copy(isLoadingApps = true) }
-            val apps = usageRepository.getInstalledApps()
-            _uiState.update {
-                it.copy(
-                    installedApps = apps,
-                    isLoadingApps = false
-                )
+        loadAppsJob?.cancel()
+        loadAppsJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingApps = true, errorMessage = null) }
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    usageRepository.getInstalledApps()
+                }
+            }.onSuccess { apps ->
+                _uiState.update {
+                    it.copy(
+                        installedApps = apps,
+                        isLoadingApps = false,
+                        errorMessage = null
+                    )
+                }
+            }.onFailure { e ->
+                _uiState.update {
+                    it.copy(
+                        isLoadingApps = false,
+                        errorMessage = "Failed to load installed apps. Please try again."
+                    )
+                }
             }
         }
     }
@@ -83,6 +104,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val clamped = minutes.coerceIn(1, 60)
         preferencesManager.sessionTimeLimitMinutes = clamped
         _uiState.update { it.copy(timeLimitMinutes = clamped) }
+    }
+
+    fun setDailyBudget(minutes: Int) {
+        val clamped = minutes.coerceIn(15, 480)
+        preferencesManager.dailyBudgetMinutes = clamped
+        _uiState.update { it.copy(dailyBudgetMinutes = clamped) }
     }
 
     fun addTrackedApp(packageName: String) {
