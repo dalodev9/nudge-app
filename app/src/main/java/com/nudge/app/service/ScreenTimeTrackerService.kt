@@ -224,7 +224,8 @@ class ScreenTimeTrackerService : Service() {
                 minutesUsed = minutesUsed,
                 onTakeBreak = {
                     serviceScope.launch {
-                        sessionTracker.onTakeBreak()
+                        sessionTracker.onTakeBreak(System.currentTimeMillis(), packageName, minutesUsed)
+                        preferencesManager.setLastAlertTime(packageName, 0L)
                     }
                 },
                 onSnooze = {
@@ -233,9 +234,6 @@ class ScreenTimeTrackerService : Service() {
                         sessionTracker.onSnooze(snoozeTime, packageName)
                         preferencesManager.setLastAlertTime(packageName, snoozeTime)
                     }
-                },
-                onDismiss = {
-                    // Cooldown is set, user acknowledged
                 }
             )
         }

@@ -38,8 +38,7 @@ class OverlayManager(private val context: Context) {
         appIcon: Drawable?,
         minutesUsed: Long,
         onTakeBreak: () -> Unit = {},
-        onSnooze: () -> Unit = {},
-        onDismiss: () -> Unit = {}
+        onSnooze: () -> Unit = {}
     ) {
         if (!canDrawOverlays(context)) {
             if (BuildConfig.DEBUG) {
@@ -215,7 +214,7 @@ class OverlayManager(private val context: Context) {
             }
             buttonRow.addView(breakButton)
 
-            // Secondary Buttons Row (Snooze + Dismiss)
+            // Secondary Button Row (Snooze)
             val secondaryRow = LinearLayout(themedContext).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
@@ -230,21 +229,18 @@ class OverlayManager(private val context: Context) {
             val snoozeButton = Button(themedContext).apply {
                 text = context.getString(com.nudge.app.R.string.snooze_5m)
                 setTextColor(Color.parseColor("#A0D2DB"))
-                textSize = 13f
+                textSize = 15f
                 minHeight = dp(48f)
                 setTypeface(null, Typeface.NORMAL)
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#1A2B25"))
-                    cornerRadius = dp(12f).toFloat()
+                    cornerRadius = dp(14f).toFloat()
                     setStroke(dp(1f), Color.parseColor("#00796B"))
                 }
                 val snoozeLp = LinearLayout.LayoutParams(
-                    0,
-                    dp(48f),
-                    1f
-                ).apply {
-                    marginEnd = dp(6f)
-                }
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(48f)
+                )
                 this.layoutParams = snoozeLp
                 setOnClickListener {
                     dismissImmediate()
@@ -252,32 +248,6 @@ class OverlayManager(private val context: Context) {
                 }
             }
             secondaryRow.addView(snoozeButton)
-
-            // Button 3: "Dismiss"
-            val dismissButton = Button(themedContext).apply {
-                text = context.getString(com.nudge.app.R.string.dismiss)
-                setTextColor(Color.parseColor("#8E9D97"))
-                textSize = 13f
-                minHeight = dp(48f)
-                setTypeface(null, Typeface.NORMAL)
-                background = GradientDrawable().apply {
-                    setColor(Color.TRANSPARENT)
-                    cornerRadius = dp(12f).toFloat()
-                }
-                val dismissLp = LinearLayout.LayoutParams(
-                    0,
-                    dp(48f),
-                    1f
-                ).apply {
-                    marginStart = dp(6f)
-                }
-                this.layoutParams = dismissLp
-                setOnClickListener {
-                    dismissImmediate()
-                    onDismiss()
-                }
-            }
-            secondaryRow.addView(dismissButton)
 
             buttonRow.addView(secondaryRow)
             cardView.addView(buttonRow)

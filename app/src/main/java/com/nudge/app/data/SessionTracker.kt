@@ -23,6 +23,8 @@ class SessionTracker(
         private set
 
     private val nextAllowedAlertMap = mutableMapOf<String, Long>()
+    private val breakUntilMap = mutableMapOf<String, Long>()
+    private val breakMinutesUsedMap = mutableMapOf<String, Long>()
 
     /**
      * Called on each polling tick with the currently detected foreground package.
@@ -33,6 +35,16 @@ class SessionTracker(
                 // New tracked app session started
                 currentActivePackage = foregroundPackage
                 sessionStartTime = now
+
+                val breakUntil = breakUntilMap[foregroundPackage] ?: 0L
+                if (now < breakUntil) {
+                    val carriedMinutes = breakMinutesUsedMap[foregroundPackage] ?: 0L
+                    breakUntilMap.remove(foregroundPackage)
+                    breakMinutesUsedMap.remove(foregroundPackage)
+                    nextAllowedAlertMap[foregroundPackage] = now + alertCooldownMs
+                    return Action.Nudge(foregroundPackage, carriedMinutes)
+                }
+
                 return Action.None
             } else {
                 // Continuing existing session — check if limit exceeded
@@ -75,11 +87,25 @@ class SessionTracker(
     }
 
     /**
-     * Resets current active session when taking a break.
+     * Take-a-break action: resets session and enforces a minimum [TAKE_BREAK_MIN_MS] break
+     * before the tracked app can be reopened without immediately re-triggering the nudge.
      */
-    fun onTakeBreak() {
+    fun onTakeBreak(
+        now: Long,
+        packageName: String? = currentActivePackage,
+        minutesUsed: Long = 0L
+    ) {
         currentActivePackage = null
         sessionStartTime = 0L
+        if (packageName != null) {
+            nextAllowedAlertMap.remove(packageName)
+            breakUntilMap[packageName] = now + TAKE_BREAK_MIN_MS
+            breakMinutesUsedMap[packageName] = minutesUsed
+        } else {
+            nextAllowedAlertMap.clear()
+            breakUntilMap.clear()
+            breakMinutesUsedMap.clear()
+        }
     }
 
     /**
@@ -93,6 +119,8 @@ class SessionTracker(
     fun setLastAlertTime(packageName: String, timestamp: Long) {
         if (timestamp > 0L) {
             nextAllowedAlertMap[packageName] = timestamp + alertCooldownMs
+        } else {
+            nextAllowedAlertMap.remove(packageName)
         }
     }
 
@@ -108,5 +136,6 @@ class SessionTracker(
     companion object {
         const val DEFAULT_ALERT_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes
         const val SNOOZE_MS = 5 * 60 * 1000L // 5 minutes
+        const val TAKE_BREAK_MIN_MS = 5 * 60 * 1000L // 5 minutes minimum break
     }
 }
