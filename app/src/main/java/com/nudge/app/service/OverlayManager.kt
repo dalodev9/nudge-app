@@ -37,6 +37,7 @@ class OverlayManager(private val context: Context) {
         appName: String,
         appIcon: Drawable?,
         minutesUsed: Long,
+        remainingBreakMs: Long = 0L,
         onTakeBreak: () -> Unit = {},
         onSnooze: () -> Unit = {}
     ) {
@@ -152,7 +153,15 @@ class OverlayManager(private val context: Context) {
 
             // Subtitle
             val subtitleView = TextView(themedContext).apply {
-                text = context.getString(com.nudge.app.R.string.overlay_subtitle, appName, minutesUsed)
+                text = if (remainingBreakMs > 0L) {
+                    context.getString(
+                        com.nudge.app.R.string.overlay_subtitle_on_break,
+                        appName,
+                        com.nudge.app.util.formatRemainingBreakTime(context, remainingBreakMs)
+                    )
+                } else {
+                    context.getString(com.nudge.app.R.string.overlay_subtitle, appName, minutesUsed)
+                }
                 textSize = 14f
                 setTextColor(Color.parseColor("#B0C4BE"))
                 gravity = Gravity.CENTER

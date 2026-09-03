@@ -67,7 +67,8 @@ object NotificationHelper {
     fun buildAlertNotification(
         context: Context,
         appName: String,
-        minutesUsed: Long
+        minutesUsed: Long,
+        remainingBreakMs: Long = 0L
     ): Notification {
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -76,10 +77,20 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val contentText = if (remainingBreakMs > 0L) {
+            context.getString(
+                R.string.notification_alert_content_on_break,
+                appName,
+                com.nudge.app.util.formatRemainingBreakTime(context, remainingBreakMs)
+            )
+        } else {
+            context.getString(R.string.notification_alert_content, appName, minutesUsed)
+        }
+
         return NotificationCompat.Builder(context, CHANNEL_ALERTS)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(context.getString(R.string.notification_alert_title))
-            .setContentText(context.getString(R.string.notification_alert_content, appName, minutesUsed))
+            .setContentText(contentText)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)

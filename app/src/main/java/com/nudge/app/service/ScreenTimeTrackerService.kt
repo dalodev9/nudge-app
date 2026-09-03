@@ -92,7 +92,8 @@ class ScreenTimeTrackerService : Service() {
         preferencesManager = appContainer.preferencesManager
         overlayManager = OverlayManager(this)
         sessionTracker = SessionTracker(
-            limitMinutesProvider = { preferencesManager.sessionTimeLimitMinutes }
+            limitMinutesProvider = { preferencesManager.sessionTimeLimitMinutes },
+            takeBreakMinutesProvider = { preferencesManager.takeBreakMinutes }
         )
 
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -200,7 +201,7 @@ class ScreenTimeTrackerService : Service() {
         when (action) {
             is SessionTracker.Action.Nudge -> {
                 preferencesManager.setLastAlertTime(action.packageName, now)
-                triggerNudge(action.packageName, action.minutesUsed)
+                triggerNudge(action.packageName, action.minutesUsed, action.remainingBreakMs)
             }
             is SessionTracker.Action.Dismiss -> {
                 if (overlayManager?.isShowing() == true) {
@@ -213,7 +214,7 @@ class ScreenTimeTrackerService : Service() {
         }
     }
 
-    private fun triggerNudge(packageName: String, minutesUsed: Long) {
+    private fun triggerNudge(packageName: String, minutesUsed: Long, remainingBreakMs: Long = 0L) {
         val appName = usageRepository.getAppName(packageName)
         val appIcon = usageRepository.getAppIcon(packageName)
 
@@ -223,6 +224,7 @@ class ScreenTimeTrackerService : Service() {
                 appName = appName,
                 appIcon = appIcon,
                 minutesUsed = minutesUsed,
+                remainingBreakMs = remainingBreakMs,
                 onTakeBreak = {
                     serviceScope.launch {
                         sessionTracker.onTakeBreak(System.currentTimeMillis(), packageName, minutesUsed)
@@ -241,7 +243,7 @@ class ScreenTimeTrackerService : Service() {
 
         // 2. Also send backup high-priority notification
         val notification = NotificationHelper.buildAlertNotification(
-            this, appName, minutesUsed
+            this, appName, minutesUsed, remainingBreakMs
         )
 
         try {

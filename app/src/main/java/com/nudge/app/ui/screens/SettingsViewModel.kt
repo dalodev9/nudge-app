@@ -31,6 +31,7 @@ data class SettingsUiState(
     val isOverlayEnabled: Boolean = true,
     val timeLimitMinutes: Int = PreferencesManager.DEFAULT_TIME_LIMIT,
     val dailyBudgetMinutes: Int = PreferencesManager.DEFAULT_DAILY_BUDGET,
+    val takeBreakMinutes: Int = PreferencesManager.DEFAULT_TAKE_BREAK_MINUTES,
     val isBatteryUnrestricted: Boolean = true,
     val canDrawOverlays: Boolean = false,
     val trackedApps: List<TrackedApp> = emptyList(),
@@ -63,6 +64,7 @@ class SettingsViewModel @JvmOverloads constructor(
                 val isOverlay = preferencesManager.isOverlayEnabled
                 val timeLimit = preferencesManager.sessionTimeLimitMinutes
                 val dailyBudget = preferencesManager.dailyBudgetMinutes
+                val takeBreak = preferencesManager.takeBreakMinutes
                 val isBattery = isIgnoringBatteryOptimizations(getApplication())
                 val canDraw = hasOverlayAccessPermission(getApplication())
                 val tracked = preferencesManager.getTrackedApps()
@@ -80,6 +82,7 @@ class SettingsViewModel @JvmOverloads constructor(
                         isOverlayEnabled = isOverlay,
                         timeLimitMinutes = timeLimit,
                         dailyBudgetMinutes = dailyBudget,
+                        takeBreakMinutes = takeBreak,
                         isBatteryUnrestricted = isBattery,
                         canDrawOverlays = canDraw,
                         trackedApps = trackedList
@@ -158,6 +161,12 @@ class SettingsViewModel @JvmOverloads constructor(
         val clamped = minutes.coerceIn(15, 480)
         preferencesManager.dailyBudgetMinutes = clamped
         _uiState.update { it.copy(dailyBudgetMinutes = clamped) }
+    }
+
+    fun setTakeBreakMinutes(minutes: Int) {
+        val clamped = minutes.coerceIn(1, 30)
+        preferencesManager.takeBreakMinutes = clamped
+        _uiState.update { it.copy(takeBreakMinutes = clamped) }
     }
 
     fun addTrackedApp(packageName: String) {

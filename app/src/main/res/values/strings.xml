@@ -46,8 +46,11 @@
     <string name="background_restricted_desc">Restricted: battery saver may pause background monitoring.</string>
     <string name="session_time_limit_title">Session Time Limit</string>
     <string name="session_time_limit_desc">Get notified after continuous use</string>
+    <string name="take_break_minutes_title">Minimum Break Duration</string>
+    <string name="take_break_minutes_desc">How long before you can reopen a tracked app without an immediate reminder</string>
     <string name="minutes_format">%1$d minutes</string>
     <string name="one_minute">1 min</string>
+    <string name="thirty_minutes">30 min</string>
     <string name="sixty_minutes">60 min</string>
     <string name="daily_budget_title">Daily Screen Time Budget</string>
     <string name="daily_budget_desc">Target limit across all tracked apps today</string>
@@ -89,8 +92,12 @@
     <string name="notification_service_monitoring">Monitoring social media usage...</string>
     <string name="notification_alert_title">Time\'s up! ⏰</string>
     <string name="notification_alert_content">You\'ve been on %1$s for %2$d min. Take a break!</string>
+    <string name="notification_alert_content_on_break">Still on a break from %1$s — %2$s</string>
     <string name="time_for_a_breather">Time for a breather?</string>
     <string name="overlay_subtitle">You\'ve been using %1$s for %2$d minutes continuously.</string>
+    <string name="overlay_subtitle_on_break">Still on a break from %1$s — %2$s</string>
+    <string name="break_remaining_seconds">%1$ds left</string>
+    <string name="break_remaining_minutes">%1$dm left</string>
     <string name="take_a_break">Take a Break 🙌</string>
     <string name="snooze_5m">+5m Snooze</string>
 

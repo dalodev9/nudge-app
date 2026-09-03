@@ -7,12 +7,17 @@ package com.nudge.app.data
  */
 class SessionTracker(
     private val limitMinutesProvider: () -> Int,
-    private val alertCooldownMs: Long = DEFAULT_ALERT_COOLDOWN_MS
+    private val alertCooldownMs: Long = DEFAULT_ALERT_COOLDOWN_MS,
+    private val takeBreakMinutesProvider: () -> Int = { DEFAULT_TAKE_BREAK_MINUTES }
 ) {
 
     sealed interface Action {
         data object None : Action
-        data class Nudge(val packageName: String, val minutesUsed: Long) : Action
+        data class Nudge(
+            val packageName: String,
+            val minutesUsed: Long,
+            val remainingBreakMs: Long = 0L
+        ) : Action
         data object Dismiss : Action
     }
 
@@ -38,11 +43,12 @@ class SessionTracker(
 
                 val breakUntil = breakUntilMap[foregroundPackage] ?: 0L
                 if (now < breakUntil) {
+                    val remaining = breakUntil - now
                     val carriedMinutes = breakMinutesUsedMap[foregroundPackage] ?: 0L
                     breakUntilMap.remove(foregroundPackage)
                     breakMinutesUsedMap.remove(foregroundPackage)
                     nextAllowedAlertMap[foregroundPackage] = now + alertCooldownMs
-                    return Action.Nudge(foregroundPackage, carriedMinutes)
+                    return Action.Nudge(foregroundPackage, carriedMinutes, remaining)
                 }
 
                 return Action.None
@@ -87,8 +93,9 @@ class SessionTracker(
     }
 
     /**
-     * Take-a-break action: resets session and enforces a minimum [TAKE_BREAK_MIN_MS] break
-     * before the tracked app can be reopened without immediately re-triggering the nudge.
+     * Take-a-break action: resets session and enforces a minimum break duration
+     * (provided by [takeBreakMinutesProvider]) before the tracked app can be reopened
+     * without immediately re-triggering the nudge.
      */
     fun onTakeBreak(
         now: Long,
@@ -99,7 +106,8 @@ class SessionTracker(
         sessionStartTime = 0L
         if (packageName != null) {
             nextAllowedAlertMap.remove(packageName)
-            breakUntilMap[packageName] = now + TAKE_BREAK_MIN_MS
+            val takeBreakMs = takeBreakMinutesProvider() * 60 * 1000L
+            breakUntilMap[packageName] = now + takeBreakMs
             breakMinutesUsedMap[packageName] = minutesUsed
         } else {
             nextAllowedAlertMap.clear()
@@ -136,6 +144,6 @@ class SessionTracker(
     companion object {
         const val DEFAULT_ALERT_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes
         const val SNOOZE_MS = 5 * 60 * 1000L // 5 minutes
-        const val TAKE_BREAK_MIN_MS = 5 * 60 * 1000L // 5 minutes minimum break
+        const val DEFAULT_TAKE_BREAK_MINUTES = 5
     }
 }

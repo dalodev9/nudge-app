@@ -77,6 +77,10 @@ fun SettingsScreen(
         mutableFloatStateOf(uiState.timeLimitMinutes.toFloat())
     }
 
+    var takeBreakSlider by remember(uiState.takeBreakMinutes) {
+        mutableFloatStateOf(uiState.takeBreakMinutes.toFloat())
+    }
+
     var dailyBudgetSlider by remember(uiState.dailyBudgetMinutes) {
         mutableFloatStateOf(uiState.dailyBudgetMinutes.toFloat())
     }
@@ -356,6 +360,79 @@ fun SettingsScreen(
                             )
                             Text(
                                 text = stringResource(R.string.sixty_minutes),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Minimum Break Duration section
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = stringResource(R.string.take_break_minutes_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = stringResource(R.string.take_break_minutes_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.minutes_format, takeBreakSlider.roundToInt()),
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Slider(
+                            value = takeBreakSlider,
+                            onValueChange = { takeBreakSlider = it },
+                            onValueChangeFinished = {
+                                viewModel.setTakeBreakMinutes(takeBreakSlider.roundToInt())
+                            },
+                            valueRange = 1f..30f,
+                            steps = 28,
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = stringResource(R.string.one_minute),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = stringResource(R.string.thirty_minutes),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )

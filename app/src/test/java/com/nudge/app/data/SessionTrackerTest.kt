@@ -10,14 +10,17 @@ class SessionTrackerTest {
 
     private lateinit var tracker: SessionTracker
     private var limitMinutes: Int = 15
+    private var takeBreakMinutes: Int = 5
     private val alertCooldownMs: Long = 5 * 60 * 1000L // 5 minutes
 
     @Before
     fun setup() {
         limitMinutes = 15
+        takeBreakMinutes = 5
         tracker = SessionTracker(
             limitMinutesProvider = { limitMinutes },
-            alertCooldownMs = alertCooldownMs
+            alertCooldownMs = alertCooldownMs,
+            takeBreakMinutesProvider = { takeBreakMinutes }
         )
     }
 
@@ -61,6 +64,7 @@ class SessionTrackerTest {
         val nudge = atLimitAction as SessionTracker.Action.Nudge
         assertEquals("com.instagram.android", nudge.packageName)
         assertEquals(15L, nudge.minutesUsed)
+        assertEquals(0L, nudge.remainingBreakMs)
     }
 
     @Test
@@ -136,6 +140,8 @@ class SessionTrackerTest {
         val earlyNudge = reopenAction as SessionTracker.Action.Nudge
         assertEquals("com.instagram.android", earlyNudge.packageName)
         assertEquals(45L, earlyNudge.minutesUsed)
+        assertEquals(180_000L, earlyNudge.remainingBreakMs)
+        assertTrue(earlyNudge.remainingBreakMs > 0L)
     }
 
     @Test
@@ -154,7 +160,7 @@ class SessionTrackerTest {
         assertEquals(0L, tracker.sessionStartTime)
 
         // User reopens the app 5 minutes and 1 second later (break window expired)
-        val validReopenTime = alertTime + SessionTracker.TAKE_BREAK_MIN_MS + 1000L
+        val validReopenTime = alertTime + (5 * 60 * 1000L) + 1000L
         val reopenAction = tracker.onTick("com.instagram.android", tracked, validReopenTime)
 
         // Should start a normal fresh session (Action.None)
@@ -170,6 +176,40 @@ class SessionTrackerTest {
         val fifteenMin = tracker.onTick("com.instagram.android", tracked, validReopenTime + 15 * 60 * 1000L)
         assertTrue(fifteenMin is SessionTracker.Action.Nudge)
         assertEquals(15L, (fifteenMin as SessionTracker.Action.Nudge).minutesUsed)
+    }
+
+    @Test
+    fun onTakeBreak_dynamicProviderValue_enforcesConfiguredBreakDuration() {
+        // Set dynamic break minutes to custom 12 minutes
+        takeBreakMinutes = 12
+        val tracked = setOf("com.instagram.android")
+        val startTime = 10_000L
+        tracker.onTick("com.instagram.android", tracked, startTime)
+
+        val alertTime = startTime + 15 * 60 * 1000L
+        tracker.onTick("com.instagram.android", tracked, alertTime)
+
+        // User triggers Take a Break at alertTime with 15 minutes used
+        tracker.onTakeBreak(now = alertTime, packageName = "com.instagram.android", minutesUsed = 15L)
+
+        // Reopening just before 12 minutes (12m - 1s): must still force-nudge
+        val earlyReopenTime = alertTime + (12 * 60 * 1000L) - 1000L
+        val earlyAction = tracker.onTick("com.instagram.android", tracked, earlyReopenTime)
+        assertTrue(earlyAction is SessionTracker.Action.Nudge)
+        val earlyNudge = earlyAction as SessionTracker.Action.Nudge
+        assertEquals(15L, earlyNudge.minutesUsed)
+        assertEquals(1000L, earlyNudge.remainingBreakMs)
+        assertTrue(earlyNudge.remainingBreakMs > 0L)
+
+        // Reset with another take break
+        tracker.onTakeBreak(now = alertTime, packageName = "com.instagram.android", minutesUsed = 15L)
+
+        // Reopening after 12 minutes (12m + 1s): must NOT force-nudge, starts fresh session
+        val validReopenTime = alertTime + (12 * 60 * 1000L) + 1000L
+        val validAction = tracker.onTick("com.instagram.android", tracked, validReopenTime)
+        assertEquals(SessionTracker.Action.None, validAction)
+        assertEquals("com.instagram.android", tracker.currentActivePackage)
+        assertEquals(validReopenTime, tracker.sessionStartTime)
     }
 
     @Test
