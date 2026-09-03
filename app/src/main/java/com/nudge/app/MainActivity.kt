@@ -10,11 +10,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
-import com.nudge.app.data.PreferencesManager
+import com.nudge.app.data.appContainer
 import com.nudge.app.service.ScreenTimeTrackerService
 import com.nudge.app.ui.navigation.AppNavigation
 import com.nudge.app.ui.navigation.Routes
-import com.nudge.app.ui.theme.MyApplicationTheme
+import com.nudge.app.ui.theme.NudgeTheme
 import com.nudge.app.util.hasUsageStatsPermission
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            MyApplicationTheme {
+            NudgeTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
     private fun ensureServiceStarted() {
         lifecycleScope.launch(Dispatchers.IO) {
             if (hasUsageStatsPermission(this@MainActivity)) {
-                val prefs = PreferencesManager(this@MainActivity)
+                val prefs = appContainer.preferencesManager
                 if (prefs.isTrackingEnabled && prefs.getEnabledTrackedApps().isNotEmpty()) {
                     ScreenTimeTrackerService.start(this@MainActivity)
                 }

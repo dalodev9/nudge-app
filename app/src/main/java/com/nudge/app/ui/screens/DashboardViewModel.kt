@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.nudge.app.data.AppUsageInfo
 import com.nudge.app.data.PreferencesManager
 import com.nudge.app.data.UsageRepository
+import com.nudge.app.data.appContainer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,8 +31,8 @@ data class DashboardUiState(
 
 class DashboardViewModel @JvmOverloads constructor(
     application: Application,
-    private val usageRepository: UsageRepository = UsageRepository(application),
-    private val preferencesManager: PreferencesManager = PreferencesManager(application),
+    private val usageRepository: UsageRepository = application.appContainer.usageRepository,
+    private val preferencesManager: PreferencesManager = application.appContainer.preferencesManager,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : AndroidViewModel(application) {
 

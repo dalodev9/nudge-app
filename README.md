@@ -97,7 +97,7 @@ com.nudge.app/
 │       ├── Theme.kt
 │       └── Type.kt
 ├── MainActivity.kt     # Single Activity host
-└── MyApplication.kt    # Application entrypoint & notification channels
+└── NudgeApplication.kt    # Application entrypoint & notification channels
 ```
 
 * **UI Toolkit**: [Jetpack Compose](https://developer.android.com/jetpack/compose) & [Material 3](https://m3.material.io/)

@@ -18,6 +18,7 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.nudge.app.BuildConfig
 import com.nudge.app.R
+import com.nudge.app.data.appContainer
 import com.nudge.app.data.PreferencesManager
 import com.nudge.app.data.SessionTracker
 import com.nudge.app.data.UsageRepository
@@ -87,8 +88,8 @@ class ScreenTimeTrackerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        usageRepository = UsageRepository(this)
-        preferencesManager = PreferencesManager(this)
+        usageRepository = appContainer.usageRepository
+        preferencesManager = appContainer.preferencesManager
         overlayManager = OverlayManager(this)
         sessionTracker = SessionTracker(
             limitMinutesProvider = { preferencesManager.sessionTimeLimitMinutes }
@@ -300,13 +301,13 @@ class ScreenTimeTrackerService : Service() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         overlayManager?.dismiss()
         overlayManager = null
         try {
             unregisterReceiver(screenReceiver)
         } catch (_: IllegalArgumentException) { }
         serviceScope.cancel()
+        super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

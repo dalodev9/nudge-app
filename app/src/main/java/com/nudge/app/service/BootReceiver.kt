@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.nudge.app.BuildConfig
-import com.nudge.app.data.PreferencesManager
+import com.nudge.app.data.appContainer
 import com.nudge.app.util.hasUsageStatsPermission
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +28,7 @@ class BootReceiver : BroadcastReceiver() {
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    val preferencesManager = PreferencesManager(context)
+                    val preferencesManager = context.appContainer.preferencesManager
                     if (preferencesManager.isTrackingEnabled &&
                         preferencesManager.getEnabledTrackedApps().isNotEmpty() &&
                         hasUsageStatsPermission(context)

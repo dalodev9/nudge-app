@@ -9,11 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -46,16 +42,11 @@ fun CircularProgress(
     val isOverLimit = totalMinutes > dailyBudgetMinutes
     val arcColor = if (isOverLimit) overLimitColor else progressColor
 
-    var animationTarget by remember { mutableFloatStateOf(0f) }
     val animatedProgress by animateFloatAsState(
-        targetValue = animationTarget,
+        targetValue = progress,
         animationSpec = tween(durationMillis = 1000),
         label = "progress"
     )
-
-    LaunchedEffect(progress) {
-        animationTarget = progress
-    }
 
     val hours = totalMinutes / 60
     val mins = totalMinutes % 60

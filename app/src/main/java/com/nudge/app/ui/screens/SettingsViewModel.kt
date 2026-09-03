@@ -6,9 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.nudge.app.data.InstalledAppInfo
 import com.nudge.app.data.PreferencesManager
 import com.nudge.app.data.UsageRepository
+import com.nudge.app.data.appContainer
 import com.nudge.app.service.ScreenTimeTrackerService
 import com.nudge.app.util.hasOverlayAccessPermission
 import com.nudge.app.util.isIgnoringBatteryOptimizations
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,10 +39,12 @@ data class SettingsUiState(
     val errorMessage: String? = null
 )
 
-class SettingsViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val preferencesManager = PreferencesManager(application)
-    private val usageRepository = UsageRepository(application)
+class SettingsViewModel @JvmOverloads constructor(
+    application: Application,
+    private val preferencesManager: PreferencesManager = application.appContainer.preferencesManager,
+    private val usageRepository: UsageRepository = application.appContainer.usageRepository,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -54,7 +58,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadSettings() {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 val isTracking = preferencesManager.isTrackingEnabled
                 val isOverlay = preferencesManager.isOverlayEnabled
                 val timeLimit = preferencesManager.sessionTimeLimitMinutes
@@ -87,7 +91,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun reloadTrackedApps() {
         viewModelScope.launch {
-            val list = withContext(Dispatchers.IO) {
+            val list = withContext(ioDispatcher) {
                 val tracked = preferencesManager.getTrackedApps()
                 tracked.map { pkg ->
                     TrackedApp(
@@ -106,7 +110,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         loadAppsJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingApps = true, errorMessage = null) }
             runCatching {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     usageRepository.getInstalledApps()
                 }
             }.onSuccess { apps ->

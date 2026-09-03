@@ -1,9 +1,5 @@
 package com.nudge.app.data
 
-import android.content.Context
-import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
-
 enum class SocialMediaApp(
     val appName: String,
     val packageNames: Set<String>
@@ -19,30 +15,7 @@ enum class SocialMediaApp(
     TELEGRAM("Telegram", setOf("org.telegram.messenger", "org.thunderdog.challegram")),
     THREADS("Threads", setOf("com.instagram.barcelona"));
 
-    fun isInstalled(context: Context): Boolean {
-        return packageNames.any { pkg ->
-            try {
-                context.packageManager.getPackageInfo(pkg, 0)
-                true
-            } catch (e: PackageManager.NameNotFoundException) {
-                false
-            }
-        }
-    }
-
-    fun getIcon(context: Context): Drawable? {
-        return packageNames.firstNotNullOfOrNull { pkg ->
-            try {
-                context.packageManager.getApplicationIcon(pkg)
-            } catch (e: PackageManager.NameNotFoundException) {
-                null
-            }
-        }
-    }
-
     companion object {
-        val ALL_PACKAGE_NAMES: Set<String> = entries.flatMap { it.packageNames }.toSet()
-
         fun findByPackageName(packageName: String): SocialMediaApp? {
             return entries.firstOrNull { it.packageNames.contains(packageName) }
         }
