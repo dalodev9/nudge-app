@@ -55,6 +55,18 @@ fun UsageBarChart(
     }
 
     val textColor = MaterialTheme.colorScheme.onSurface
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val textPaint = remember(textColor, density) {
+        android.graphics.Paint().apply {
+            color = textColor.toArgb()
+            textSize = with(density) { 13.sp.toPx() }
+            isAntiAlias = true
+            typeface = android.graphics.Typeface.create(
+                android.graphics.Typeface.SANS_SERIF,
+                android.graphics.Typeface.NORMAL
+            )
+        }
+    }
 
     Canvas(
         modifier = modifier
@@ -81,15 +93,7 @@ fun UsageBarChart(
                 labelText,
                 0f,
                 yOffset + labelHeightPx - 2.dp.toPx(),
-                android.graphics.Paint().apply {
-                    color = textColor.toArgb()
-                    textSize = 13.sp.toPx()
-                    isAntiAlias = true
-                    typeface = android.graphics.Typeface.create(
-                        android.graphics.Typeface.SANS_SERIF,
-                        android.graphics.Typeface.NORMAL
-                    )
-                }
+                textPaint
             )
 
             // Draw bar track
@@ -100,9 +104,9 @@ fun UsageBarChart(
                 cornerRadius = cornerRadius
             )
 
-            // Draw bar fill
+            // Draw bar fill - only if minutes > 0
             val barWidth = (item.minutes.toFloat() / maxMinutes) * canvasWidth * animatedFraction
-            if (barWidth > 0f) {
+            if (item.minutes > 0 && barWidth > 0f) {
                 drawRoundRect(
                     color = item.color,
                     topLeft = Offset(0f, yOffset + labelHeightPx + 2.dp.toPx()),
@@ -112,6 +116,11 @@ fun UsageBarChart(
             }
         }
     }
+}
+
+fun getBarColor(packageName: String): Color {
+    val index = (packageName.hashCode() and 0x7FFFFFFF) % UsageBarColors.size
+    return UsageBarColors[index]
 }
 
 fun getBarColor(index: Int): Color {

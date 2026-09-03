@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,7 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.nudge.app.R
 import com.nudge.app.util.hasOverlayAccessPermission
 import com.nudge.app.util.hasUsageStatsPermission
 import com.nudge.app.util.openOverlaySettings
@@ -120,7 +122,7 @@ fun PermissionScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Welcome to Nudge",
+                text = stringResource(R.string.welcome_to_nudge),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
@@ -129,7 +131,7 @@ fun PermissionScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "To monitor your screen time and show friendly break reminders, Nudge requires device permissions. Your data stays strictly on your device and is never shared.",
+                text = stringResource(R.string.welcome_description),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -152,7 +154,7 @@ fun PermissionScreen(
                     )
                 ) {
                     Text(
-                        text = "Grant Usage Access",
+                        text = stringResource(R.string.grant_usage_access),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -161,7 +163,7 @@ fun PermissionScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "Find this app in the list and enable Usage Access to continue.",
+                    text = stringResource(R.string.find_app_usage_access),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -171,7 +173,7 @@ fun PermissionScreen(
             // Step 2: Overlay Permission (Display over other apps)
             if (hasUsagePermission && !hasOverlayPermission) {
                 Text(
-                    text = "\u2705 Usage Access granted!",
+                    text = stringResource(R.string.usage_access_granted),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
@@ -192,7 +194,7 @@ fun PermissionScreen(
                     )
                 ) {
                     Text(
-                        text = "Enable Popup Window (Appear on top)",
+                        text = stringResource(R.string.enable_popup_window),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center
@@ -202,7 +204,7 @@ fun PermissionScreen(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = "Allows the app to show a floating reminder card over social apps.",
+                    text = stringResource(R.string.popup_window_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
@@ -215,14 +217,14 @@ fun PermissionScreen(
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Skip for now")
+                    Text(stringResource(R.string.skip_for_now))
                 }
             }
 
             // Step 3: Notification permission (Android 13+)
             if (hasUsagePermission && hasOverlayPermission && !hasNotificationPermission) {
                 Text(
-                    text = "\u2705 Permissions granted!",
+                    text = stringResource(R.string.permissions_granted_heading),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
@@ -249,7 +251,11 @@ fun PermissionScreen(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(
-                        text = if (isNotificationPermanentlyDenied) "Open App Settings" else "Enable Notifications",
+                        text = if (isNotificationPermanentlyDenied) {
+                            stringResource(R.string.open_app_settings)
+                        } else {
+                            stringResource(R.string.enable_notifications)
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -262,14 +268,14 @@ fun PermissionScreen(
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Skip for now")
+                    Text(stringResource(R.string.skip_for_now))
                 }
             }
 
             // All granted
             if (hasUsagePermission && hasOverlayPermission && hasNotificationPermission) {
                 Text(
-                    text = "\u2705 All permissions ready!",
+                    text = stringResource(R.string.all_permissions_ready),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
@@ -285,7 +291,7 @@ fun PermissionScreen(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(
-                        text = "Get Started",
+                        text = stringResource(R.string.get_started),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )

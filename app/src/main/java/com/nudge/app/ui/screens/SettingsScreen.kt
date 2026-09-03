@@ -47,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nudge.app.BuildConfig
+import com.nudge.app.R
 import com.nudge.app.ui.components.AppIcon
 import com.nudge.app.ui.components.AppPickerBottomSheet
 import com.nudge.app.util.hasOverlayAccessPermission
@@ -89,7 +92,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Settings",
+                        text = stringResource(R.string.settings),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -98,7 +101,7 @@ fun SettingsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 },
@@ -134,12 +137,12 @@ fun SettingsScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Monitoring",
+                                text = stringResource(R.string.monitoring_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = if (uiState.isTrackingEnabled) "Active" else "Paused",
+                                text = stringResource(if (uiState.isTrackingEnabled) R.string.active else R.string.paused),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
@@ -174,17 +177,17 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(
-                                text = "Popup Reminder Window",
+                                text = stringResource(R.string.popup_window_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
                                 text = if (!uiState.canDrawOverlays) {
-                                    "Permission required — tap to grant"
+                                    stringResource(R.string.popup_permission_required)
                                 } else if (uiState.isOverlayEnabled) {
-                                    "Floating card appears over apps"
+                                    stringResource(R.string.popup_floating_card)
                                 } else {
-                                    "Notifications only"
+                                    stringResource(R.string.popup_notifications_only)
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (!uiState.canDrawOverlays && uiState.isOverlayEnabled) {
@@ -230,17 +233,19 @@ fun SettingsScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                 Text(
-                                    text = "Background Reliability",
+                                    text = stringResource(R.string.background_reliability_title),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = if (uiState.isBatteryUnrestricted) {
-                                        "Unrestricted: phone battery saver will not stop tracking."
-                                    } else {
-                                        "Restricted: battery saver may pause background monitoring."
-                                    },
+                                    text = stringResource(
+                                        if (uiState.isBatteryUnrestricted) {
+                                            R.string.background_unrestricted_desc
+                                        } else {
+                                            R.string.background_restricted_desc
+                                        }
+                                    ),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                 )
@@ -253,13 +258,13 @@ fun SettingsScreen(
                                 ) {
                                     Icon(
                                         Icons.Default.Check,
-                                        contentDescription = "Active",
+                                        contentDescription = stringResource(R.string.active),
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "Active",
+                                        text = stringResource(R.string.active),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold
@@ -275,7 +280,7 @@ fun SettingsScreen(
                                     )
                                 ) {
                                     Text(
-                                        text = "Unrestrict",
+                                        text = stringResource(R.string.unrestrict),
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -291,7 +296,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Session Time Limit",
+                    text = stringResource(R.string.session_time_limit_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -299,7 +304,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Get notified after continuous use",
+                    text = stringResource(R.string.session_time_limit_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -318,7 +323,7 @@ fun SettingsScreen(
                             .padding(20.dp)
                     ) {
                         Text(
-                            text = "${timeLimitSlider.roundToInt()} minutes",
+                            text = stringResource(R.string.minutes_format, timeLimitSlider.roundToInt()),
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -345,12 +350,12 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "1 min",
+                                text = stringResource(R.string.one_minute),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
                             Text(
-                                text = "60 min",
+                                text = stringResource(R.string.sixty_minutes),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
@@ -364,7 +369,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Daily Screen Time Budget",
+                    text = stringResource(R.string.daily_budget_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -372,7 +377,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Target limit across all tracked apps today",
+                    text = stringResource(R.string.daily_budget_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -394,11 +399,11 @@ fun SettingsScreen(
                         val budgetHours = budgetMins / 60
                         val budgetRemMins = budgetMins % 60
                         val budgetText = if (budgetHours > 0 && budgetRemMins > 0) {
-                            "${budgetHours}h ${budgetRemMins}m (${budgetMins} min)"
+                            stringResource(R.string.budget_format_hours_mins, budgetHours, budgetRemMins, budgetMins)
                         } else if (budgetHours > 0) {
-                            "${budgetHours} hours (${budgetMins} min)"
+                            stringResource(R.string.budget_format_hours, budgetHours, budgetMins)
                         } else {
-                            "$budgetMins minutes"
+                            stringResource(R.string.minutes_format, budgetMins)
                         }
 
                         Text(
@@ -429,12 +434,12 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "15 min",
+                                text = stringResource(R.string.fifteen_minutes),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
                             Text(
-                                text = "8 hours",
+                                text = stringResource(R.string.eight_hours),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
@@ -454,12 +459,12 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Tracked Apps",
+                            text = stringResource(R.string.tracked_apps_title),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${uiState.trackedApps.size} apps configured",
+                            text = stringResource(R.string.apps_configured_format, uiState.trackedApps.size),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -475,12 +480,12 @@ fun SettingsScreen(
                     ) {
                         Icon(
                             Icons.Default.Add,
-                            contentDescription = "Add",
+                            contentDescription = stringResource(R.string.add),
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Add App",
+                            text = stringResource(R.string.add_app),
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -508,13 +513,13 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "No apps monitored yet",
+                                text = stringResource(R.string.no_apps_monitored_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Tap '+ Add App' to select apps from your device to monitor.",
+                                text = stringResource(R.string.no_apps_settings_desc),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                 textAlign = TextAlign.Center
@@ -544,14 +549,14 @@ fun SettingsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Nudge v1.0",
+                        text = stringResource(R.string.version_format, BuildConfig.VERSION_NAME),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Built 100% with AI • Author's Learning Journey 🤖",
+                        text = stringResource(R.string.app_tagline),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                     )
@@ -639,7 +644,7 @@ private fun TrackedAppRow(
                 ) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Remove ${app.appName}",
+                        contentDescription = stringResource(R.string.remove_app_content_desc, app.appName),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                 }

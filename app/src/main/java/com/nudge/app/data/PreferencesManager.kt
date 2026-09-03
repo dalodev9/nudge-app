@@ -2,6 +2,7 @@ package com.nudge.app.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 
 class PreferencesManager(context: Context) {
 
@@ -11,19 +12,19 @@ class PreferencesManager(context: Context) {
 
     var sessionTimeLimitMinutes: Int
         get() = prefs.getInt(KEY_TIME_LIMIT, DEFAULT_TIME_LIMIT)
-        set(value) = prefs.edit().putInt(KEY_TIME_LIMIT, value).apply()
+        set(value) = prefs.edit { putInt(KEY_TIME_LIMIT, value) }
 
     var dailyBudgetMinutes: Int
         get() = prefs.getInt(KEY_DAILY_BUDGET, DEFAULT_DAILY_BUDGET)
-        set(value) = prefs.edit().putInt(KEY_DAILY_BUDGET, value).apply()
+        set(value) = prefs.edit { putInt(KEY_DAILY_BUDGET, value) }
 
     var isTrackingEnabled: Boolean
         get() = prefs.getBoolean(KEY_TRACKING_ENABLED, true)
-        set(value) = prefs.edit().putBoolean(KEY_TRACKING_ENABLED, value).apply()
+        set(value) = prefs.edit { putBoolean(KEY_TRACKING_ENABLED, value) }
 
     var isOverlayEnabled: Boolean
         get() = prefs.getBoolean(KEY_OVERLAY_ENABLED, true)
-        set(value) = prefs.edit().putBoolean(KEY_OVERLAY_ENABLED, value).apply()
+        set(value) = prefs.edit { putBoolean(KEY_OVERLAY_ENABLED, value) }
 
     /**
      * All package names currently in the user's tracked list.
@@ -33,21 +34,18 @@ class PreferencesManager(context: Context) {
     }
 
     fun addTrackedApp(packageName: String) {
-        val current = getTrackedApps().toMutableSet()
-        current.add(packageName)
-        prefs.edit().putStringSet(KEY_TRACKED_APPS, current).apply()
-        // Ensure it is enabled by default when added
-        setAppEnabled(packageName, true)
+        prefs.edit {
+            putStringSet(KEY_TRACKED_APPS, getTrackedApps() + packageName)
+            putStringSet(KEY_DISABLED_APPS, getDisabledApps() - packageName)
+        }
     }
 
     fun removeTrackedApp(packageName: String) {
-        val current = getTrackedApps().toMutableSet()
-        current.remove(packageName)
-        prefs.edit().putStringSet(KEY_TRACKED_APPS, current).apply()
-
-        val disabled = getDisabledApps().toMutableSet()
-        disabled.remove(packageName)
-        prefs.edit().putStringSet(KEY_DISABLED_APPS, disabled).apply()
+        prefs.edit {
+            putStringSet(KEY_TRACKED_APPS, getTrackedApps() - packageName)
+            putStringSet(KEY_DISABLED_APPS, getDisabledApps() - packageName)
+            remove(KEY_ALERT_COOLDOWN_PREFIX + packageName)
+        }
     }
 
     fun isAppTracked(packageName: String): Boolean {
@@ -63,13 +61,12 @@ class PreferencesManager(context: Context) {
     }
 
     fun setAppEnabled(packageName: String, enabled: Boolean) {
-        val disabled = getDisabledApps().toMutableSet()
-        if (enabled) {
-            disabled.remove(packageName)
+        val disabled = if (enabled) {
+            getDisabledApps() - packageName
         } else {
-            disabled.add(packageName)
+            getDisabledApps() + packageName
         }
-        prefs.edit().putStringSet(KEY_DISABLED_APPS, disabled).apply()
+        prefs.edit { putStringSet(KEY_DISABLED_APPS, disabled) }
     }
 
     /**
@@ -86,7 +83,13 @@ class PreferencesManager(context: Context) {
     }
 
     fun setLastAlertTime(packageName: String, timestamp: Long) {
-        prefs.edit().putLong(KEY_ALERT_COOLDOWN_PREFIX + packageName, timestamp).apply()
+        prefs.edit {
+            if (timestamp <= 0L) {
+                remove(KEY_ALERT_COOLDOWN_PREFIX + packageName)
+            } else {
+                putLong(KEY_ALERT_COOLDOWN_PREFIX + packageName, timestamp)
+            }
+        }
     }
 
     companion object {

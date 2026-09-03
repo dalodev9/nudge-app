@@ -111,6 +111,7 @@ class OverlayManager(private val context: Context) {
             if (appIcon != null) {
                 val iconView = ImageView(themedContext).apply {
                     setImageDrawable(appIcon)
+                    contentDescription = appName
                     val iconLp = LinearLayout.LayoutParams(dp(48f), dp(48f)).apply {
                         bottomMargin = dp(12f)
                     }
@@ -135,7 +136,7 @@ class OverlayManager(private val context: Context) {
 
             // Title
             val titleView = TextView(themedContext).apply {
-                text = "Time for a breather?"
+                text = context.getString(com.nudge.app.R.string.time_for_a_breather)
                 textSize = 20f
                 setTypeface(null, Typeface.BOLD)
                 setTextColor(Color.parseColor("#EBF2EF"))
@@ -152,7 +153,7 @@ class OverlayManager(private val context: Context) {
 
             // Subtitle
             val subtitleView = TextView(themedContext).apply {
-                text = "You've been using $appName for $minutesUsed minutes continuously."
+                text = context.getString(com.nudge.app.R.string.overlay_subtitle, appName, minutesUsed)
                 textSize = 14f
                 setTextColor(Color.parseColor("#B0C4BE"))
                 gravity = Gravity.CENTER
@@ -179,9 +180,10 @@ class OverlayManager(private val context: Context) {
 
             // Button 1: "Take a Break" (Primary filled button -> sends to Home screen)
             val breakButton = Button(themedContext).apply {
-                text = "Take a Break \uD83D\uDE4C"
+                text = context.getString(com.nudge.app.R.string.take_a_break)
                 setTextColor(Color.parseColor("#0F1A17"))
                 textSize = 15f
+                minHeight = dp(48f)
                 setTypeface(null, Typeface.BOLD)
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#A0D2DB")) // Primary teal accent
@@ -226,9 +228,10 @@ class OverlayManager(private val context: Context) {
 
             // Button 2: "+5m Snooze"
             val snoozeButton = Button(themedContext).apply {
-                text = "+5m Snooze"
+                text = context.getString(com.nudge.app.R.string.snooze_5m)
                 setTextColor(Color.parseColor("#A0D2DB"))
                 textSize = 13f
+                minHeight = dp(48f)
                 setTypeface(null, Typeface.NORMAL)
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#1A2B25"))
@@ -237,7 +240,7 @@ class OverlayManager(private val context: Context) {
                 }
                 val snoozeLp = LinearLayout.LayoutParams(
                     0,
-                    dp(42f),
+                    dp(48f),
                     1f
                 ).apply {
                     marginEnd = dp(6f)
@@ -252,9 +255,10 @@ class OverlayManager(private val context: Context) {
 
             // Button 3: "Dismiss"
             val dismissButton = Button(themedContext).apply {
-                text = "Dismiss"
+                text = context.getString(com.nudge.app.R.string.dismiss)
                 setTextColor(Color.parseColor("#8E9D97"))
                 textSize = 13f
+                minHeight = dp(48f)
                 setTypeface(null, Typeface.NORMAL)
                 background = GradientDrawable().apply {
                     setColor(Color.TRANSPARENT)
@@ -262,7 +266,7 @@ class OverlayManager(private val context: Context) {
                 }
                 val dismissLp = LinearLayout.LayoutParams(
                     0,
-                    dp(42f),
+                    dp(48f),
                     1f
                 ).apply {
                     marginStart = dp(6f)

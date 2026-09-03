@@ -68,4 +68,25 @@ class PreferencesManagerTest {
         preferencesManager.setLastAlertTime(pkg, timestamp)
         assertEquals(timestamp, preferencesManager.getLastAlertTime(pkg))
     }
+
+    @Test
+    fun removeTrackedApp_cleansUpAlertCooldownKey() {
+        val pkg = "com.instagram.android"
+        preferencesManager.addTrackedApp(pkg)
+        preferencesManager.setLastAlertTime(pkg, 987654321L)
+        assertEquals(987654321L, preferencesManager.getLastAlertTime(pkg))
+
+        preferencesManager.removeTrackedApp(pkg)
+        assertEquals(0L, preferencesManager.getLastAlertTime(pkg))
+    }
+
+    @Test
+    fun setLastAlertTime_zeroOrNegative_removesKey() {
+        val pkg = "com.instagram.android"
+        preferencesManager.setLastAlertTime(pkg, 12345L)
+        assertEquals(12345L, preferencesManager.getLastAlertTime(pkg))
+
+        preferencesManager.setLastAlertTime(pkg, 0L)
+        assertEquals(0L, preferencesManager.getLastAlertTime(pkg))
+    }
 }

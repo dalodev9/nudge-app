@@ -43,11 +43,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nudge.app.R
 import com.nudge.app.data.InstalledAppInfo
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,7 +91,7 @@ fun AppPickerBottomSheet(
                 .padding(horizontal = 20.dp)
         ) {
             Text(
-                text = "Add Apps to Monitor",
+                text = stringResource(R.string.add_apps_to_monitor),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -97,7 +99,7 @@ fun AppPickerBottomSheet(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "Choose from apps installed on your device",
+                text = stringResource(R.string.choose_from_installed_apps),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
@@ -109,18 +111,18 @@ fun AppPickerBottomSheet(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search apps...") },
+                placeholder = { Text(stringResource(R.string.search_apps_placeholder)) },
                 leadingIcon = {
                     Icon(
                         Icons.Default.Search,
-                        contentDescription = "Search",
+                        contentDescription = stringResource(R.string.search),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                            Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear_search))
                         }
                     }
                 },
@@ -167,7 +169,7 @@ fun AppPickerBottomSheet(
                         if (onRetry != null) {
                             Spacer(modifier = Modifier.height(12.dp))
                             OutlinedButton(onClick = onRetry) {
-                                Text("Retry")
+                                Text(stringResource(R.string.retry))
                             }
                         }
                     }
@@ -180,7 +182,11 @@ fun AppPickerBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (searchQuery.isBlank()) "No installed apps found" else "No apps found matching \"$searchQuery\"",
+                        text = if (searchQuery.isBlank()) {
+                            stringResource(R.string.no_installed_apps_found)
+                        } else {
+                            stringResource(R.string.no_apps_matching_query, searchQuery)
+                        },
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -258,13 +264,13 @@ private fun AppPickerItem(
             ) {
                 Icon(
                     Icons.Default.Check,
-                    contentDescription = "Added",
+                    contentDescription = stringResource(R.string.added),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "Added",
+                    text = stringResource(R.string.added),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
@@ -284,7 +290,7 @@ private fun AppPickerItem(
                 )
             ) {
                 Text(
-                    text = "+ Add",
+                    text = stringResource(R.string.add_button),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold
                 )

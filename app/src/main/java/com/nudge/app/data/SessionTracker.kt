@@ -22,7 +22,7 @@ class SessionTracker(
     var sessionStartTime: Long = 0L
         private set
 
-    private val alertCooldownMap = mutableMapOf<String, Long>()
+    private val nextAllowedAlertMap = mutableMapOf<String, Long>()
 
     /**
      * Called on each polling tick with the currently detected foreground package.
@@ -40,9 +40,9 @@ class SessionTracker(
                 val limitMs = limitMinutesProvider() * 60 * 1000L
 
                 if (sessionDurationMs >= limitMs) {
-                    val lastAlert = alertCooldownMap[foregroundPackage] ?: 0L
-                    if (now - lastAlert > alertCooldownMs) {
-                        alertCooldownMap[foregroundPackage] = now
+                    val nextAllowed = nextAllowedAlertMap[foregroundPackage] ?: 0L
+                    if (now >= nextAllowed) {
+                        nextAllowedAlertMap[foregroundPackage] = now + alertCooldownMs
                         val minutesUsed = sessionDurationMs / (60 * 1000L)
                         return Action.Nudge(foregroundPackage, minutesUsed)
                     }
@@ -61,13 +61,16 @@ class SessionTracker(
     }
 
     /**
-     * Adjusts the session start time so the next alert triggers after [alertCooldownMs].
+     * Snooze action: keeps the session active and schedules the next nudge after [snoozeMs].
+     * Independent of limitMs, so short limits (e.g. <= 5 min) snooze for the full [snoozeMs].
      */
-    fun onSnooze(now: Long, packageName: String? = currentActivePackage) {
-        val limitMs = limitMinutesProvider() * 60 * 1000L
-        sessionStartTime = now - (limitMs - alertCooldownMs).coerceAtLeast(0L)
+    fun onSnooze(
+        now: Long,
+        packageName: String? = currentActivePackage,
+        snoozeMs: Long = SNOOZE_MS
+    ) {
         if (packageName != null) {
-            alertCooldownMap[packageName] = now
+            nextAllowedAlertMap[packageName] = now + snoozeMs
         }
     }
 
@@ -89,15 +92,21 @@ class SessionTracker(
 
     fun setLastAlertTime(packageName: String, timestamp: Long) {
         if (timestamp > 0L) {
-            alertCooldownMap[packageName] = timestamp
+            nextAllowedAlertMap[packageName] = timestamp + alertCooldownMs
         }
     }
 
     fun getLastAlertTime(packageName: String): Long {
-        return alertCooldownMap[packageName] ?: 0L
+        val nextAllowed = nextAllowedAlertMap[packageName] ?: 0L
+        return if (nextAllowed > alertCooldownMs) nextAllowed - alertCooldownMs else 0L
+    }
+
+    fun getNextAllowedAlertTime(packageName: String): Long {
+        return nextAllowedAlertMap[packageName] ?: 0L
     }
 
     companion object {
         const val DEFAULT_ALERT_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes
+        const val SNOOZE_MS = 5 * 60 * 1000L // 5 minutes
     }
 }

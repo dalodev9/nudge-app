@@ -21,10 +21,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nudge.app.R
 
 @Composable
 fun CircularProgress(
@@ -102,7 +104,7 @@ fun CircularProgress(
                 color = if (isOverLimit) overLimitColor else MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "of ${dailyBudgetMinutes}m today",
+                text = stringResource(R.string.today_budget_progress, dailyBudgetMinutes),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )

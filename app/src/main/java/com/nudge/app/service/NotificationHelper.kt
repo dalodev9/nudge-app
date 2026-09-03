@@ -9,13 +9,14 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.nudge.app.MainActivity
+import com.nudge.app.R
 
 object NotificationHelper {
 
     const val CHANNEL_SERVICE = "channel_screen_time_service"
     const val CHANNEL_ALERTS = "channel_usage_alerts"
     const val SERVICE_NOTIFICATION_ID = 1001
-    private const val ALERT_NOTIFICATION_ID_BASE = 2000
+    const val ALERT_NOTIFICATION_ID = 2001
 
     fun createChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -23,19 +24,19 @@ object NotificationHelper {
 
             val serviceChannel = NotificationChannel(
                 CHANNEL_SERVICE,
-                "Screen Time Monitoring",
+                context.getString(R.string.notification_channel_service_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Ongoing notification while monitoring screen time"
+                description = context.getString(R.string.notification_channel_service_desc)
                 setShowBadge(false)
             }
 
             val alertChannel = NotificationChannel(
                 CHANNEL_ALERTS,
-                "Usage Limit Alerts",
+                context.getString(R.string.notification_channel_alerts_name),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Alerts when you exceed your social media time limit"
+                description = context.getString(R.string.notification_channel_alerts_desc)
                 enableVibration(true)
                 setShowBadge(true)
             }
@@ -54,7 +55,7 @@ object NotificationHelper {
 
         return NotificationCompat.Builder(context, CHANNEL_SERVICE)
             .setSmallIcon(android.R.drawable.ic_menu_recent_history)
-            .setContentTitle("Nudge")
+            .setContentTitle(context.getString(R.string.app_name))
             .setContentText(contentText)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -77,8 +78,8 @@ object NotificationHelper {
 
         return NotificationCompat.Builder(context, CHANNEL_ALERTS)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("Time's up! \u23F0")
-            .setContentText("You've been on $appName for $minutesUsed min. Take a break!")
+            .setContentTitle(context.getString(R.string.notification_alert_title))
+            .setContentText(context.getString(R.string.notification_alert_content, appName, minutesUsed))
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
@@ -86,8 +87,8 @@ object NotificationHelper {
             .build()
     }
 
-    fun getAlertNotificationId(packageName: String): Int {
-        return ALERT_NOTIFICATION_ID_BASE + packageName.hashCode().and(0x7FFFFFFF) % 1000
+    fun getAlertNotificationId(packageName: String? = null): Int {
+        return ALERT_NOTIFICATION_ID
     }
 }
 

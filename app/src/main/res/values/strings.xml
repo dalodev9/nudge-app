@@ -1,3 +1,102 @@
 <resources>
     <string name="app_name">Nudge</string>
+    <string name="app_tagline">Built 100% with AI • Author\'s Learning Journey 🤖</string>
+    <string name="version_format">Nudge v%1$s</string>
+
+    <!-- Navigation & Common Actions -->
+    <string name="back">Back</string>
+    <string name="settings">Settings</string>
+    <string name="retry">Retry</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="skip_for_now">Skip for now</string>
+    <string name="get_started">Get Started</string>
+    <string name="add">Add</string>
+    <string name="add_button">+ Add</string>
+    <string name="added">Added</string>
+    <string name="remove_app_content_desc">Remove %1$s</string>
+    <string name="unrestrict">Unrestrict</string>
+    <string name="clear_search">Clear search</string>
+    <string name="search">Search</string>
+    <string name="active">Active</string>
+    <string name="paused">Paused</string>
+
+    <!-- Dashboard Screen -->
+    <string name="screen_time_title">Screen Time</string>
+    <string name="usage_access_required_title">Usage Access Required</string>
+    <string name="usage_access_prompt">Please grant Usage Access permission to view screen time.</string>
+    <string name="unable_to_load_usage">Unable to load usage data</string>
+    <string name="something_went_wrong">Something went wrong</string>
+    <string name="today_monitored_usage">Today\'s Monitored Usage</string>
+    <string name="today_budget_progress">of %1$dm today</string>
+    <string name="no_apps_monitored_title">No apps monitored yet</string>
+    <string name="no_apps_monitored_subtitle">Choose which apps you want to track screen time for.</string>
+    <string name="add_monitored_apps">Add Monitored Apps</string>
+    <string name="breakdown_title">Breakdown</string>
+    <string name="apps_title">Apps</string>
+    <string name="no_monitored_usage_today">No monitored app usage today!</string>
+
+    <!-- Settings Screen -->
+    <string name="monitoring_title">Monitoring</string>
+    <string name="popup_window_title">Popup Reminder Window</string>
+    <string name="popup_permission_required">Permission required — tap to grant</string>
+    <string name="popup_floating_card">Floating card appears over apps</string>
+    <string name="popup_notifications_only">Notifications only</string>
+    <string name="background_reliability_title">Background Reliability</string>
+    <string name="background_unrestricted_desc">Unrestricted: phone battery saver will not stop tracking.</string>
+    <string name="background_restricted_desc">Restricted: battery saver may pause background monitoring.</string>
+    <string name="session_time_limit_title">Session Time Limit</string>
+    <string name="session_time_limit_desc">Get notified after continuous use</string>
+    <string name="minutes_format">%1$d minutes</string>
+    <string name="one_minute">1 min</string>
+    <string name="sixty_minutes">60 min</string>
+    <string name="daily_budget_title">Daily Screen Time Budget</string>
+    <string name="daily_budget_desc">Target limit across all tracked apps today</string>
+    <string name="budget_format_hours_mins">%1$dh %2$dm (%3$d min)</string>
+    <string name="budget_format_hours">%1$d hours (%2$d min)</string>
+    <string name="fifteen_minutes">15 min</string>
+    <string name="eight_hours">8 hours</string>
+    <string name="tracked_apps_title">Tracked Apps</string>
+    <string name="apps_configured_format">%1$d apps configured</string>
+    <string name="add_app">Add App</string>
+    <string name="no_apps_settings_desc">Tap \'+ Add App\' to select apps from your device to monitor.</string>
+
+    <!-- Permission Screen -->
+    <string name="welcome_to_nudge">Welcome to Nudge</string>
+    <string name="welcome_description">To monitor your screen time and show friendly break reminders, Nudge requires device permissions. Your data stays strictly on your device and is never shared.</string>
+    <string name="grant_usage_access">Grant Usage Access</string>
+    <string name="find_app_usage_access">Find this app in the list and enable Usage Access to continue.</string>
+    <string name="usage_access_granted">✅ Usage Access granted!</string>
+    <string name="enable_popup_window">Enable Popup Window (Appear on top)</string>
+    <string name="popup_window_desc">Allows the app to show a floating reminder card over social apps.</string>
+    <string name="permissions_granted_heading">✅ Permissions granted!</string>
+    <string name="open_app_settings">Open App Settings</string>
+    <string name="enable_notifications">Enable Notifications</string>
+    <string name="all_permissions_ready">✅ All permissions ready!</string>
+
+    <!-- App Picker Bottom Sheet -->
+    <string name="add_apps_to_monitor">Add Apps to Monitor</string>
+    <string name="choose_from_installed_apps">Choose from apps installed on your device</string>
+    <string name="search_apps_placeholder">Search apps...</string>
+    <string name="no_installed_apps_found">No installed apps found</string>
+    <string name="no_apps_matching_query">No apps found matching \"%1$s\"</string>
+    <string name="failed_to_load_apps">Failed to load installed apps. Please try again.</string>
+
+    <!-- Notifications & Overlays -->
+    <string name="notification_channel_service_name">Screen Time Monitoring</string>
+    <string name="notification_channel_service_desc">Ongoing notification while monitoring screen time</string>
+    <string name="notification_channel_alerts_name">Usage Limit Alerts</string>
+    <string name="notification_channel_alerts_desc">Alerts when you exceed your social media time limit</string>
+    <string name="notification_service_monitoring">Monitoring social media usage...</string>
+    <string name="notification_alert_title">Time\'s up! ⏰</string>
+    <string name="notification_alert_content">You\'ve been on %1$s for %2$d min. Take a break!</string>
+    <string name="time_for_a_breather">Time for a breather?</string>
+    <string name="overlay_subtitle">You\'ve been using %1$s for %2$d minutes continuously.</string>
+    <string name="take_a_break">Take a Break 🙌</string>
+    <string name="snooze_5m">+5m Snooze</string>
+    <string name="dismiss">Dismiss</string>
+
+    <!-- System / Error Messages -->
+    <string name="settings_unavailable">Settings activity not available on this device</string>
+    <string name="usage_access_revoked_error">Usage Access permission required to track app usage.</string>
+    <string name="usage_access_generic_error">Couldn\'t read usage stats. Check Usage Access.</string>
 </resources>

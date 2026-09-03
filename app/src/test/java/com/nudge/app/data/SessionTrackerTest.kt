@@ -84,29 +84,29 @@ class SessionTrackerTest {
     }
 
     @Test
-    fun onSnooze_offsetsSessionStartTimeCorrectly() {
+    fun onSnooze_snoozesForExactDurationEvenOnShortLimits() {
+        limitMinutes = 3 // 3 minute limit
         val tracked = setOf("com.instagram.android")
         val startTime = 100_000L
         tracker.onTick("com.instagram.android", tracked, startTime)
 
-        val limitMs = 15 * 60 * 1000L
+        val limitMs = 3 * 60 * 1000L
         val alertTime = startTime + limitMs
-        tracker.onTick("com.instagram.android", tracked, alertTime)
+        val alertAction = tracker.onTick("com.instagram.android", tracked, alertTime)
+        assertTrue(alertAction is SessionTracker.Action.Nudge)
+        assertEquals(3L, (alertAction as SessionTracker.Action.Nudge).minutesUsed)
 
         // User taps snooze at alertTime
         tracker.onSnooze(alertTime, "com.instagram.android")
 
-        // Expected session start time shifted: alertTime - (15m - 5m) = alertTime - 10m
-        val expectedStartTime = alertTime - (limitMs - alertCooldownMs)
-        assertEquals(expectedStartTime, tracker.sessionStartTime)
-
-        // 4 minutes after snooze: no alert (still 14m session duration)
+        // 4 minutes after snooze (total 7 min): no alert (snooze is 5 minutes)
         val fourMinLater = tracker.onTick("com.instagram.android", tracked, alertTime + 4 * 60 * 1000L)
         assertEquals(SessionTracker.Action.None, fourMinLater)
 
-        // 5 minutes and 1 sec after snooze: alert triggers
+        // 5 minutes and 1 sec after snooze: alert triggers with accurate total minutes
         val fiveMinLater = tracker.onTick("com.instagram.android", tracked, alertTime + alertCooldownMs + 1000L)
         assertTrue(fiveMinLater is SessionTracker.Action.Nudge)
+        assertEquals(8L, (fiveMinLater as SessionTracker.Action.Nudge).minutesUsed)
     }
 
     @Test

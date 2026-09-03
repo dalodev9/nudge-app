@@ -17,6 +17,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.nudge.app.BuildConfig
+import com.nudge.app.R
 import com.nudge.app.data.PreferencesManager
 import com.nudge.app.data.SessionTracker
 import com.nudge.app.data.UsageRepository
@@ -122,7 +123,7 @@ class ScreenTimeTrackerService : Service() {
         }
 
         val notification = NotificationHelper.buildServiceNotification(
-            this, "Monitoring social media usage..."
+            this, getString(R.string.notification_service_monitoring)
         )
 
         try {

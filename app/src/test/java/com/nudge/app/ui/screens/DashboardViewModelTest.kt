@@ -82,7 +82,7 @@ class DashboardViewModelTest {
         viewModel.uiState.test {
             awaitItem() // initial state
             testDispatcher.scheduler.advanceUntilIdle()
-            val errorState = expectMostRecentItem()
+            val errorState = awaitItem()
 
             assertFalse(errorState.isLoading)
             assertFalse(errorState.isRefreshing)
@@ -110,7 +110,7 @@ class DashboardViewModelTest {
         viewModel.uiState.test {
             awaitItem() // initial state
             testDispatcher.scheduler.advanceUntilIdle()
-            val errorState = expectMostRecentItem()
+            val errorState = awaitItem()
 
             assertFalse(errorState.isLoading)
             assertFalse(errorState.isRefreshing)
@@ -144,7 +144,7 @@ class DashboardViewModelTest {
         viewModel.uiState.test {
             awaitItem() // initial state
             testDispatcher.scheduler.advanceUntilIdle()
-            val successState = expectMostRecentItem()
+            val successState = awaitItem()
 
             assertFalse(successState.isLoading)
             assertFalse(successState.isRefreshing)
@@ -153,6 +153,43 @@ class DashboardViewModelTest {
             assertEquals(42L, successState.totalMinutes)
             assertEquals(1, successState.appUsages.size)
             assertEquals("com.instagram.android", successState.appUsages[0].packageName)
+        }
+    }
+
+    @Test
+    fun refreshData_disabledApp_excludedFromUsageAndTotalMinutes() = runTest(testDispatcher) {
+        preferencesManager.addTrackedApp("com.twitter.android")
+        preferencesManager.setAppEnabled("com.twitter.android", false)
+
+        val repo = object : UsageRepository(application) {
+            override fun getTodayUsageForTrackedApps(trackedPackages: Set<String>): List<AppUsageInfo> {
+                assertFalse(trackedPackages.contains("com.twitter.android"))
+                assertTrue(trackedPackages.contains("com.instagram.android"))
+                return listOf(
+                    AppUsageInfo(
+                        packageName = "com.instagram.android",
+                        appName = "Instagram",
+                        usageMinutes = 30L
+                    )
+                )
+            }
+        }
+
+        val viewModel = DashboardViewModel(
+            application = application,
+            usageRepository = repo,
+            preferencesManager = preferencesManager,
+            ioDispatcher = testDispatcher
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            testDispatcher.scheduler.advanceUntilIdle()
+            val state = awaitItem()
+
+            assertEquals(30L, state.totalMinutes)
+            assertEquals(1, state.appUsages.size)
+            assertEquals("com.instagram.android", state.appUsages[0].packageName)
         }
     }
 }

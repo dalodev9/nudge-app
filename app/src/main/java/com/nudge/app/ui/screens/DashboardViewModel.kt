@@ -57,9 +57,10 @@ class DashboardViewModel @JvmOverloads constructor(
 
             runCatching {
                 withContext(ioDispatcher) {
-                    val trackedPackages = preferencesManager.getTrackedApps()
-                    val hasConfigured = trackedPackages.isNotEmpty()
-                    val appUsages = usageRepository.getTodayUsageForTrackedApps(trackedPackages)
+                    val allTracked = preferencesManager.getTrackedApps()
+                    val enabledPackages = preferencesManager.getEnabledTrackedApps()
+                    val hasConfigured = allTracked.isNotEmpty()
+                    val appUsages = usageRepository.getTodayUsageForTrackedApps(enabledPackages)
                     val totalMinutes = appUsages.sumOf { it.usageMinutes }
                     val dailyBudget = preferencesManager.dailyBudgetMinutes
                     val isTracking = preferencesManager.isTrackingEnabled
