@@ -1,5 +1,6 @@
 import java.util.Properties
 import java.io.FileInputStream
+import com.android.build.api.artifact.SingleArtifact
 
 plugins {
     alias(libs.plugins.android.application)
@@ -83,6 +84,57 @@ android {
 
 kotlin {
     jvmToolchain(17)
+}
+
+// Rename APK/AAB outputs to nudge-<buildType>-<versionName>.[apk|aab].
+// AGP 9's public Variant API no longer exposes a direct outputFileName setter,
+// so both outputs are renamed post-build via their SingleArtifact providers.
+androidComponents {
+    onVariants { variant ->
+        val versionName = android.defaultConfig.versionName ?: "unknown"
+        val variantName = variant.name // "debug" or "release"
+        val baseName = "nudge-$variantName-$versionName"
+        val capitalizedVariant = variantName.replaceFirstChar { it.uppercase() }
+
+        // APK filename
+        val apkDir = variant.artifacts.get(SingleArtifact.APK)
+        val builtArtifactsLoader = variant.artifacts.getBuiltArtifactsLoader()
+        val renameApkTask = tasks.register("rename${capitalizedVariant}Apk") {
+            inputs.dir(apkDir)
+            doLast {
+                val builtArtifacts = builtArtifactsLoader.load(apkDir.get())
+                    ?: return@doLast
+                builtArtifacts.elements.forEach { artifact ->
+                    val source = File(artifact.outputFile)
+                    val dest = source.resolveSibling("$baseName.apk")
+                    if (source != dest) {
+                        source.copyTo(dest, overwrite = true)
+                        source.delete()
+                    }
+                }
+            }
+        }
+        tasks.matching { it.name == "assemble$capitalizedVariant" }.configureEach {
+            finalizedBy(renameApkTask)
+        }
+
+        // AAB filename
+        val bundleFile = variant.artifacts.get(SingleArtifact.BUNDLE)
+        val renameBundleTask = tasks.register("rename${capitalizedVariant}Bundle") {
+            inputs.file(bundleFile)
+            doLast {
+                val source = bundleFile.get().asFile
+                val dest = source.resolveSibling("$baseName.aab")
+                if (source != dest) {
+                    source.copyTo(dest, overwrite = true)
+                    source.delete()
+                }
+            }
+        }
+        tasks.matching { it.name == "bundle$capitalizedVariant" }.configureEach {
+            finalizedBy(renameBundleTask)
+        }
+    }
 }
 
 dependencies {
