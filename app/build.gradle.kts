@@ -107,9 +107,12 @@ androidComponents {
                 builtArtifacts.elements.forEach { artifact ->
                     val source = File(artifact.outputFile)
                     val dest = source.resolveSibling("$baseName.apk")
+                    // Copy only — don't delete the original. AGP's output-metadata.json
+                    // (read by Android Studio's Run/Deploy) is written before this task
+                    // runs and still points at the original filename; deleting it causes
+                    // "We were unable to deploy your changes: FileNotFoundException".
                     if (source != dest) {
                         source.copyTo(dest, overwrite = true)
-                        source.delete()
                     }
                 }
             }
@@ -125,9 +128,10 @@ androidComponents {
             doLast {
                 val source = bundleFile.get().asFile
                 val dest = source.resolveSibling("$baseName.aab")
+                // Copy only — same reasoning as the APK task above: leave the original
+                // in place for AGP/IDE tooling that expects it via its own listing file.
                 if (source != dest) {
                     source.copyTo(dest, overwrite = true)
-                    source.delete()
                 }
             }
         }
