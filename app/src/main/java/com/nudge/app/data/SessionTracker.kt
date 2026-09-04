@@ -45,10 +45,11 @@ class SessionTracker(
                 if (now < breakUntil) {
                     val remaining = breakUntil - now
                     val carriedMinutes = breakMinutesUsedMap[foregroundPackage] ?: 0L
-                    breakUntilMap.remove(foregroundPackage)
-                    breakMinutesUsedMap.remove(foregroundPackage)
                     nextAllowedAlertMap[foregroundPackage] = now + alertCooldownMs
                     return Action.Nudge(foregroundPackage, carriedMinutes, remaining)
+                } else if (breakUntil > 0L) {
+                    breakUntilMap.remove(foregroundPackage)
+                    breakMinutesUsedMap.remove(foregroundPackage)
                 }
 
                 return Action.None
@@ -106,9 +107,12 @@ class SessionTracker(
         sessionStartTime = 0L
         if (packageName != null) {
             nextAllowedAlertMap.remove(packageName)
-            val takeBreakMs = takeBreakMinutesProvider() * 60 * 1000L
-            breakUntilMap[packageName] = now + takeBreakMs
-            breakMinutesUsedMap[packageName] = minutesUsed
+            val breakUntil = breakUntilMap[packageName] ?: 0L
+            if (now >= breakUntil) {
+                val takeBreakMs = takeBreakMinutesProvider() * 60 * 1000L
+                breakUntilMap[packageName] = now + takeBreakMs
+                breakMinutesUsedMap[packageName] = minutesUsed
+            }
         } else {
             nextAllowedAlertMap.clear()
             breakUntilMap.clear()
