@@ -16,6 +16,12 @@ jobs:
   release:
     name: Build & Publish Release APK
     runs-on: ubuntu-latest
+    env:
+      # The `secrets` context can't be used directly in a step's `if:` condition
+      # (GitHub Actions rejects it: "Unrecognized named-value: 'secrets'").
+      # Promoting the check into a job-level env var and conditioning on `env.*`
+      # instead is the documented workaround.
+      HAS_RELEASE_KEYSTORE: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
 
     steps:
       - name: Checkout repository
@@ -40,7 +46,7 @@ jobs:
       # Without these secrets, app/build.gradle.kts already falls back to debug
       # signing for the release build type, so this step is safe to skip entirely.
       - name: Decode release keystore (if configured)
-        if: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
+        if: ${{ env.HAS_RELEASE_KEYSTORE == 'true' }}
         run: |
           KEYSTORE_PATH="${{ runner.temp }}/release.keystore.jks"
           echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$KEYSTORE_PATH"
